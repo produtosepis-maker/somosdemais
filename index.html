@@ -1,0 +1,1681 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <title>🌍 Monitoramento Nacional Operacional INMET</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Plotly -->
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+
+    <!-- Chart.js + plugins -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hammerjs@2.0.8/hammer.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
+
+    <!-- XLSX -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+    <style>
+        :root {
+            --bg: #0e1117;
+            --panel: #161b22;
+            --border: #30363d;
+            --text: #e6edf3;
+            --muted: #8b949e;
+            --operante: #2ca02c;
+            --atencao: #FFD966;
+            --isolado: #F4B183;
+            --pane: #FF0000;
+            --parou: #D9B3FF;
+            --retornou: #77DCF2;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+        }
+
+        header {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        header h1 { margin: 0; font-size: 1.5rem; }
+        .caption { color: var(--muted); font-size: 0.85rem; }
+
+        .kpis {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+            padding: 16px 24px;
+        }
+        .kpi-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px;
+            text-align: center;
+        }
+        .kpi-card .label { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; }
+        .kpi-card .value { font-size: 1.6rem; font-weight: 700; margin-top: 4px; }
+
+        .filters {
+            padding: 0 24px 16px;
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            align-items: flex-start;
+        }
+        .filter-group {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 16px;
+            min-height: 130px;
+        }
+        .filter-group h4 { margin: 0 0 8px; font-size: 0.85rem; color: var(--muted); text-transform: uppercase; }
+        .pill {
+            display: inline-block;
+            padding: 5px 12px;
+            margin: 3px;
+            border-radius: 16px;
+            cursor: pointer;
+            border: 1px solid var(--border);
+            font-size: 0.8rem;
+            user-select: none;
+        }
+        .pill.active { background: #2f81f7; border-color: #2f81f7; color: #fff; }
+
+        select[multiple] {
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px;
+            min-width: 160px;
+            height: 90px;
+        }
+        .regiao-actions { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+        .regiao-actions button { padding: 4px 8px; font-size: 0.72rem; }
+
+        .maps-section { padding: 0 24px 16px; }
+        .maps-section h2 { font-size: 1.1rem; margin: 0 0 10px; }
+        .maps-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        .map-box {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        .map-box h3 { margin: 0; padding: 10px 14px; font-size: 0.95rem; border-bottom: 1px solid var(--border); }
+        #mapOperacional, #mapTelemetria { height: 650px; width: 100%; background: #111; }
+        .legend {
+            padding: 8px 14px;
+            font-size: 0.75rem;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            border-top: 1px solid var(--border);
+        }
+        .legend span { display: inline-flex; align-items: center; gap: 5px; }
+        .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+        .section { padding: 0 24px 24px; }
+        .section h2 { font-size: 1.1rem; margin-bottom: 10px; }
+
+        .table-container {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            overflow: auto;
+            max-height: 430px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            font-size: 0.78rem;
+            white-space: nowrap;
+        }
+        th, td { border: 1px solid var(--border); padding: 6px 10px; text-align: left; }
+        th {
+            position: sticky;
+            top: 0;
+            background: #1c2129;
+            z-index: 2;
+            cursor: pointer;
+            user-select: none;
+            transition: background .15s;
+        }
+        th:hover { background: #242a33; }
+        th .sort-arrow { margin-left: 4px; font-size: 0.7rem; color: #2f81f7; }
+        tr:hover td { filter: brightness(1.1); }
+
+        .status-OPERANTE { background: #C6EFCE; color: #006100; }
+        .status-ATENCAO { background: #FFF2CC; color: #7F6000; }
+        .status-ISOLADO { background: #F4B183; color: #7F2704; }
+        .status-PANE { background: #F4CCCC; color: #990000; }
+        .status-PAROU { background: #D9B3FF; color: #4B0082; }
+        .status-RETORNOU { background: #77DCF2; color: #003344; }
+
+        .controls-row {
+            display: flex;
+            gap: 16px;
+            flex-wrap: wrap;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        .controls-row label { font-size: 0.85rem; color: var(--muted); margin-right: 6px; }
+        select, button, input[type="text"], input[type="date"] {
+            background: var(--panel);
+            color: var(--text);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 8px 12px;
+            font-size: 0.85rem;
+        }
+        input[type="date"] { color-scheme: dark; min-width: 150px; }
+        input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(1); cursor: pointer; }
+        select, button { cursor: pointer; }
+        select:hover, button:hover { border-color: #2f81f7; }
+        button.primary { background: #2f81f7; border-color: #2f81f7; }
+        button.kml { background: #238636; border-color: #238636; }
+        button.ghost { background: transparent; }
+
+        .chart-box-plotly {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 8px;
+            position: relative;
+            min-height: 320px;
+        }
+        .chart-box-plotly .chart-header {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 2px; flex-wrap: wrap; gap: 4px;
+        }
+        .chart-box-plotly .chart-title { font-size: 0.85rem; font-weight: 600; color: var(--text); margin: 0; }
+        .chart-box-plotly .chart-legend-custom { font-size: 0.72rem; color: var(--muted); display: flex; gap: 10px; flex-wrap: wrap; }
+        .chart-box-plotly .chart-legend-custom span { display: inline-flex; align-items: center; gap: 4px; }
+        .chart-box-plotly .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+        
+        .btn-csv {
+            font-size: 0.7rem; padding: 3px 8px; border-radius: 4px; background: #1c2129;
+            border: 1px solid var(--border); color: var(--muted); cursor: pointer;
+        }
+        .btn-csv:hover { border-color: #2f81f7; color: #e6edf3; }
+
+        .charts-grid-unified {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .chart-box-compact {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px;
+            height: 280px;
+            position: relative;
+        }
+        .chart-box-compact canvas { max-height: 240px; width: 100% !important; height: auto !important; }
+        .chart-box-compact .zoom-reset {
+            position: absolute; top: 6px; right: 6px; z-index: 5;
+            padding: 3px 8px; font-size: 0.65rem; border-radius: 6px;
+            background: #1c2129; border: 1px solid var(--border); color: var(--muted); cursor: pointer;
+        }
+        .chart-box-compact .zoom-reset:hover { border-color: #2f81f7; color: #e6edf3; }
+
+        .wind-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 0.75rem; margin-top: 8px; }
+        .wind-legend span { display: inline-flex; align-items: center; gap: 5px; }
+
+        .comp-lista {
+            max-height: 120px; overflow: auto; border: 1px solid var(--border); border-radius: 6px;
+            padding: 6px; min-width: 260px; background: var(--panel);
+        }
+        .comp-lista label {
+            display: flex; align-items: center; gap: 6px; padding: 4px 6px; font-size: 0.82rem; cursor: pointer; border-radius: 6px;
+        }
+        .comp-lista label:hover { background: #1c2129; }
+
+        .date-range-block {
+            background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+            padding: 10px 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+        }
+        .date-range-block label { font-size: 0.8rem; color: var(--muted); white-space: nowrap; }
+
+        .loading-bar { height: 4px; background: #1c2129; }
+        .loading-bar .fill { height: 100%; width: 0%; background: #2f81f7; transition: width .2s; }
+        .progress-text { font-size: 0.8rem; color: var(--muted); padding: 0 24px; }
+        
+        .chart-loading-container {
+            width: 100%; background: #1c2129; border-radius: 4px; height: 6px; overflow: hidden; display: none;
+        }
+        .chart-loading-bar { height: 100%; width: 0%; background: #2f81f7; transition: width 0.3s ease; }
+
+        .footer {
+            padding: 20px 24px; color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--border); text-align: center;
+        }
+
+        .export-menu { position: relative; display: inline-block; }
+        .export-dropdown {
+            display: none; position: absolute; top: 110%; left: 0; background: var(--panel); border: 1px solid var(--border);
+            border-radius: 8px; min-width: 220px; z-index: 10; padding: 6px;
+        }
+        .export-dropdown.show { display: block; }
+        .export-dropdown label {
+            display: flex; align-items: center; gap: 8px; padding: 6px 8px; font-size: 0.82rem; cursor: pointer; border-radius: 6px;
+        }
+        .export-dropdown label:hover { background: #1c2129; }
+        .export-dropdown hr { border-color: var(--border); margin: 6px 0; }
+
+        .imagem-container {
+            background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 16px; overflow: auto;
+        }
+        .imagem-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+        .imagem-bloco { text-align: center; }
+        .imagem-bloco img { width: 100%; max-width: 100%; height: auto; border-radius: 6px; border: 1px solid var(--border); }
+        .imagem-bloco .img-caption { margin-top: 6px; font-size: 0.78rem; color: var(--muted); text-align: center; line-height: 1.3; }
+
+        .pulsing-icon { pointer-events: none; }
+        .pulsing-icon .ring {
+            width: 8px; height: 8px; background-color: transparent; border: 2px solid #FFA500;
+            border-radius: 50%; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); animation: pulse-ring 0.8s infinite alternate;
+        }
+        @keyframes pulse-ring {
+            0% { width: 8px; height: 8px; border-width: 2px; border-color: #FFD700; opacity: 1; }
+            100% { width: 28px; height: 28px; border-width: 6px; border-color: #FF8C00; opacity: 0.1; }
+        }
+
+        .popup-window-note {
+            margin-top: 10px;
+            padding-top: 6px;
+            border-top: 1px dashed var(--border, #444);
+            font-size: 0.7rem;
+            color: #8b949e;
+            font-style: italic;
+        }
+
+        @media (max-width: 900px) {
+            .charts-grid-unified { grid-template-columns: 1fr; }
+            .maps-grid { grid-template-columns: 1fr; }
+            .kpis { grid-template-columns: repeat(4, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>🌍 Monitoramento Nacional Operacional INMET</h1>
+            <div class="caption" id="lastUpdate">Última atualização: --</div>
+        </div>
+        <div class="caption" id="nextUpdate">Próxima atualização automática: --</div>
+    </header>
+
+    <div class="loading-bar"><div class="fill" id="progressFill"></div></div>
+    <div class="progress-text" id="progressText">Iniciando...</div>
+
+    <div class="kpis">
+        <div class="kpi-card"><div class="label">Total</div><div class="value" id="kpiTotal">0</div></div>
+        <div class="kpi-card"><div class="label">🟢 Operante</div><div class="value" id="kpiOperante">0</div></div>
+        <div class="kpi-card"><div class="label">🟡 Atenção</div><div class="value" id="kpiAtencao">0</div></div>
+        <div class="kpi-card"><div class="label">🟠 Isolado</div><div class="value" id="kpiIsolado">0</div></div>
+        <div class="kpi-card"><div class="label">🔴 Pane</div><div class="value" id="kpiPane">0</div></div>
+        <div class="kpi-card"><div class="label">🟣 Parou</div><div class="value" id="kpiParou">0</div></div>
+        <div class="kpi-card"><div class="label">🔵 Retornou</div><div class="value" id="kpiRetornou">0</div></div>
+    </div>
+
+    <div class="filters">
+        <div class="filter-group">
+            <h4>🎯 Status</h4>
+            <div id="statusPills"></div>
+        </div>
+        <div class="filter-group">
+            <h4>🌍 Região</h4>
+            <select id="regiaoFiltro" multiple></select>
+            <div class="regiao-actions">
+                <button type="button" class="ghost" onclick="selecionarTodasRegioes()">✅ Selecionar todas</button>
+                <button type="button" class="ghost" onclick="desmarcarTodasRegioes()">❌ Desmarcar todas</button>
+                <button type="button" class="ghost" onclick="limparRegioes()">🗑️ Limpar</button>
+            </div>
+        </div>
+        <div class="filter-group">
+            <h4>Ações</h4>
+            <button class="primary" onclick="atualizarTudo(true)">🔄 Atualizar agora</button>
+            <button onclick="baixarExcel()">⬇️ Baixar Excel</button>
+            <div class="export-menu">
+                <button class="kml" onclick="toggleExportKML(event)">🌐 Exportar KML ▾</button>
+                <div class="export-dropdown" id="kmlDropdown">
+                    <label><input type="checkbox" id="kmlPorStatusOp" checked> Classificar por Status Operacional</label>
+                    <label><input type="checkbox" id="kmlPorStatusTel" checked> Classificar por Status Telemetria</label>
+                    <label><input type="checkbox" id="kmlPorRegiao" checked> Classificar por Região</label>
+                    <label><input type="checkbox" id="kmlPorTipoTrans" checked> Classificar por Tipo de Transmissão</label>
+                    <label><input type="checkbox" id="kmlPorUF"> Classificar por UF</label>
+                    <hr>
+                    <button class="primary" style="width:100%;" onclick="baixarKML()">⬇️ Gerar e baixar KML</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="maps-section">
+        <h2>🗺️ Monitoramento Espacial Operacional</h2>
+        <div class="maps-grid">
+            <div class="map-box">
+                <h3>🗺️ Operacional</h3>
+                <div id="mapOperacional"></div>
+                <div class="legend" id="legendOperacional"></div>
+            </div>
+            <div class="map-box">
+                <h3>📡 Telemetria</h3>
+                <div id="mapTelemetria"></div>
+                <div class="legend" id="legendTelemetria"></div>
+            </div>
+        </div>
+        <div class="caption" id="estacoesPlotadas" style="margin-top:8px;"></div>
+    </div>
+
+    <div class="section">
+        <h2>📋 Monitoramento Geral <span class="caption">(clique no cabeçalho para ordenar)</span></h2>
+        <div class="table-container">
+            <table id="tabelaGeral">
+                <thead><tr id="tabelaHead"></tr></thead>
+                <tbody id="tabelaBody"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>📊 Localização das Estações (Comparação)</h2>
+        <div class="controls-row">
+            <div>
+                <label>Estações (até 5):</label>
+                <input type="text" id="compBusca" placeholder="Buscar por código ou nome..." style="width:240px; margin-bottom:6px; display:block;">
+                <div id="compEstacoesList" class="comp-lista"></div>
+            </div>
+        </div>
+        
+        <div class="map-box">
+            <h3>🗺️ Localização das Estações (Comparação)</h3>
+            <div id="mapComparacao" style="height: 350px; width: 100%; background: #111;"></div>
+        </div>
+    </div>
+
+    <!-- ========== COMPARAÇÃO RECENTE (VITRAL / PLOTLY) ========== -->
+    <div class="section">
+        <h2>📈 Análise Rápida (Últimos 10 Dias — API Vitral / Plotly)</h2>
+        <div class="controls-row">
+            <button class="primary" onclick="plotarComparacaoVitral()">📊 Plotar Gráficos Rápidos (Vitral)</button>
+            <span class="caption" style="margin-left:8px;">🖱️ Arraste o mouse no gráfico para selecionar uma área (zoom)</span>
+        </div>
+        
+        <div class="charts-grid-unified" id="comparacaoVitralGrid"></div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px;" id="ventoVitralRow">
+            <div class="chart-box-compact" style="height:320px;">
+                <button class="zoom-reset" onclick="resetZoom('chartVentoSetasVitral')">↩️ Reset Zoom</button>
+                <h4 style="margin:0 0 4px; font-size:0.85rem;">🧭 Direção e Velocidade do Vento (Vitral)</h4>
+                <canvas id="chartVentoSetasVitral" height="140"></canvas>
+            </div>
+            <div class="chart-box-compact" style="height:320px;">
+                <button class="zoom-reset" onclick="resetZoom('chartVentoRadarVitral')">↩️ Reset Zoom</button>
+                <h4 style="margin:0 0 4px; font-size:0.85rem; text-align:center;">🌹 Rosa dos Ventos (Vitral)</h4>
+                <canvas id="chartVentoRadarVitral" height="280"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== COMPARAÇÃO HISTÓRICA (APITEMPO / PLOTLY) ========== -->
+    <div class="section">
+        <h2>📈 Análise Histórica (API Tempo)</h2>
+        <div class="controls-row">
+            <div class="date-range-block">
+                <label>📅 Data Inicial:</label>
+                <input type="date" id="compDataInicio" title="Data inicial do período">
+                <label style="margin-left:4px;">📅 Data Final:</label>
+                <input type="date" id="compDataFim" title="Data final do período">
+                <button class="ghost" onclick="definirPeriodoPadrao()" title="Últimos 10 dias">↩️ Padrão (10 dias)</button>
+            </div>
+            <button id="btnPlotar" class="primary" onclick="plotarComparacaoMultiVariavel()">📊 Plotar Histórico (Apitempo)</button>
+            <span class="caption" style="margin-left:8px;">🖱️ Selecione uma área para zoom | Scroll = zoom | Arrastar = mover</span>
+            
+            <div style="width: 100%; margin-top: 8px;">
+                <div class="chart-loading-container" id="chartLoadingContainer">
+                    <div class="chart-loading-bar" id="chartLoadingBar"></div>
+                </div>
+                <div class="caption" id="chartLoadingText" style="margin-top: 4px;"></div>
+            </div>
+        </div>
+
+        <div class="charts-grid-unified" id="comparacaoMultiGrid"></div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px;" id="ventoComparacaoRow">
+            <div class="chart-box-compact" style="height:320px;">
+                <button class="zoom-reset" onclick="resetZoom('chartVentoSetasApitempo')">↩️ Reset Zoom</button>
+                <h4 style="margin:0 0 4px; font-size:0.85rem;">🧭 Direção e Velocidade do Vento (Apitempo)</h4>
+                <canvas id="chartVentoSetasApitempo" height="140"></canvas>
+                <div class="wind-legend" id="legendVento"></div>
+            </div>
+            <div class="chart-box-compact" style="height:320px;">
+                <button class="zoom-reset" onclick="resetZoom('chartVentoRadarApitempo')">↩️ Reset Zoom</button>
+                <h4 style="margin:0 0 4px; font-size:0.85rem; text-align:center;">🌹 Rosa dos Ventos (Apitempo)</h4>
+                <canvas id="chartVentoRadarApitempo" height="280"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🛰️ Imagem de Topo das Nuvens — Mais Recentes</h2>
+        <div class="imagem-container">
+            <div class="imagem-grid" id="imagemSateliteGrid"></div>
+        </div>
+    </div>
+
+    <div class="footer">Sistema Nacional Operacional de Monitoramento Meteorológico INMET</div>
+
+    <script>
+        if (window.Chart && window.ChartZoom) {
+            Chart.register(window.ChartZoom);
+        } else if (window.Chart && Chart.Zoom) {
+            Chart.register(Chart.Zoom);
+        }
+
+        const ZOOM_PAN_OPTIONS = {
+            zoom: {
+                wheel: { enabled: true, speed: 0.1 },
+                pinch: { enabled: true },
+                mode: "x",
+                drag: { 
+                    enabled: true, 
+                    backgroundColor: 'rgba(47, 129, 247, 0.2)',
+                    borderColor: '#2f81f7',
+                    borderWidth: 1
+                }
+            },
+            pan: { enabled: true, mode: "x", modifierKey: null },
+            limits: { x: { minRange: 1000 * 60 * 60 } }
+        };
+
+        let chartInstances = {};
+
+        function resetZoom(chartId) {
+            if (chartInstances[chartId] && chartInstances[chartId].resetZoom) {
+                chartInstances[chartId].resetZoom();
+            }
+        }
+
+        const API_TEMPO = "https://apitempo.inmet.gov.br";
+        const API_VITRAL = "https://apivitral.inmet.gov.br";
+        const TOKEN_API = "bDVzUzNIdEVUeXJMS3R6RmRZTDJjaFBLMDh3SU5yQk0=l5sS3HtETyrLKtzFdYL2chPK08wINrBM";
+        const MAX_CONCURRENT = 20;
+        const CACHE_TTL_ESTACOES = 3600 * 1000;
+        const CACHE_TTL_VITRAL = 900 * 1000;
+
+        const ESTACOES_EXCLUIDAS = new Set([
+            "A004", "A006", "A007", "A008", "A059", "A060", "A127", "A208", "A243", "A302", "A338", "A362",
+            "A378", "A379", "A403", "A411", "A418", "A420", "A435", "A449", "A454", "A459", "A460", "A461",
+            "A462", "A463", "A464", "A465", "A466", "A467", "A468", "A469", "A470", "A471", "A501", "A503",
+            "A504", "A573", "A574", "A575", "A576", "A577", "A578", "A579", "A580", "A581", "A582", "A605",
+            "A615", "A623", "A635", "A650", "A651", "A653", "A654", "A655", "A656", "A729", "A745", "A757",
+            "A767", "A773", "A774", "A775", "A776", "A777", "A778", "A779", "A780", "A781", "A791", "A792",
+            "A793", "A794", "A795", "A796", "A797", "A799", "A808", "A847", "A913", "A915", "A918", "A921",
+            "A998", "A999", "B701", "B702", "B703", "B704", "B705", "B706", "B707", "B807", "B879", "B882", "B884"
+        ]);
+
+        const REGIOES = {
+            AC: 'NORTE', AP: 'NORTE', AM: 'NORTE', PA: 'NORTE', RO: 'NORTE', RR: 'NORTE', TO: 'NORTE',
+            AL: 'NORDESTE', BA: 'NORDESTE', CE: 'NORDESTE', MA: 'NORDESTE', PB: 'NORDESTE', PE: 'NORDESTE',
+            PI: 'NORDESTE', RN: 'NORDESTE', SE: 'NORDESTE',
+            DF: 'CENTRO-OESTE', GO: 'CENTRO-OESTE', MT: 'CENTRO-OESTE', MS: 'CENTRO-OESTE',
+            ES: 'SUDESTE', MG: 'SUDESTE', RJ: 'SUDESTE', SP: 'SUDESTE',
+            PR: 'SUL', RS: 'SUL', SC: 'SUL'
+        };
+
+        const SENSORES = {
+            tem_ins: "Temperatura instantanea", tem_max: "Temperatura maxima", tem_min: "Temperatura minima",
+            umd_ins: "Umidade instantanea", umd_max: "Umidade maxima", umd_min: "Umidade minima",
+            pto_ins: "Ponto orvalho instantaneo", pto_max: "Ponto orvalho maximo", pto_min: "Ponto orvalho minimo",
+            pre_ins: "Pressao instantanea", pre_max: "Pressao maxima", pre_min: "Pressao minima",
+            ven_vel: "Vento velocidade", ven_dir: "Vento direcao", ven_raj: "Vento rajada",
+            rad_glo: "Radiacao global", chuva: "Chuva", ten_bat: "Tensao bateria"
+        };
+
+        const NOMES_VARIAVEIS = {
+            TEM_INS: { titulo: "Temperatura Instantânea", unidade: "°C", tipo: "line" },
+            TEM_MAX: { titulo: "Temperatura Máxima", unidade: "°C", tipo: "line" },
+            TEM_MIN: { titulo: "Temperatura Mínima", unidade: "°C", tipo: "line" },
+            UMD_INS: { titulo: "Umidade Relativa Instantânea", unidade: "%", tipo: "line" },
+            UMD_MAX: { titulo: "Umidade Relativa Máxima", unidade: "%", tipo: "line" },
+            UMD_MIN: { titulo: "Umidade Relativa Mínima", unidade: "%", tipo: "line" },
+            PTO_INS: { titulo: "Ponto de Orvalho Instantâneo", unidade: "°C", tipo: "line" },
+            PTO_MAX: { titulo: "Ponto de Orvalho Máximo", unidade: "°C", tipo: "line" },
+            PTO_MIN: { titulo: "Ponto de Orvalho Mínimo", unidade: "°C", tipo: "line" },
+            PRE_INS: { titulo: "Pressão Atmosférica", unidade: "hPa", tipo: "line" },
+            RAD_GLO: { titulo: "Radiação Global", unidade: "KJ/m²", tipo: "bar" },
+            CHUVA: { titulo: "Precipitação", unidade: "mm", tipo: "bar" },
+            TEN_BAT: { titulo: "Tensão da Bateria", unidade: "V", tipo: "bar" },
+            VEN_VEL: { titulo: "Velocidade do Vento", unidade: "m/s", tipo: "line" },
+            VEN_RAJ: { titulo: "Rajada de Vento", unidade: "m/s", tipo: "line" },
+            VEN_DIR: { titulo: "Direção do Vento", unidade: "°", tipo: "scatter_markers" }
+        };
+
+        const EMOJI_STATUS = {
+            OPERANTE: "🟢 OPERANTE", "ATENÇÃO": "🟡 ATENÇÃO", ISOLADO: "🟠 ISOLADO",
+            PANE: "🔴 PANE", PAROU: "🟣 PAROU", RETORNOU: "🔵 RETORNOU"
+        };
+        const CORES = {
+            OPERANTE: "#2ca02c", "ATENÇÃO": "#FFD966", ISOLADO: "#F4B183",
+            PANE: "#FF0000", PAROU: "#D9B3FF", RETORNOU: "#77DCF2"
+        };
+        const CORES_TELEMETRIA = {
+            "<=30 min": "#00B050", "31-60 min": "#FFD966", "61-90 min": "#F4B183",
+            ">90 min": "#C00000", "SEM MENSAGEM": "#808080"
+        };
+
+        const PALETA_ESTACOES = ["#2ca02c", "#e74c3c", "#2f81f7", "#f39c12", "#9b59b6"];
+
+        let DF = [];
+        let DF_FILTRADO = [];
+        let DF_ORDENADO = [];
+
+        const STATUS_KEYS = ["OPERANTE", "ATENÇÃO", "ISOLADO", "PANE", "PAROU", "RETORNOU"];
+        let statusAtivos = new Set(STATUS_KEYS);
+
+        let comparacaoSelecionadas = [];
+        let mapOp, mapTel, groupOp, groupTel, mapComp, groupComp, groupCompSelected;
+        let markersComp = {};
+        let ordenacaoAtual = { coluna: null, direcao: 1 };
+
+        function cacheGet(key, ttl) {
+            try {
+                const raw = localStorage.getItem(key);
+                if (!raw) return null;
+                const { t, data } = JSON.parse(raw);
+                if (Date.now() - t > ttl) return null;
+                return data;
+            } catch (e) { return null; }
+        }
+        function cacheSet(key, data) {
+            try { localStorage.setItem(key, JSON.stringify({ t: Date.now(), data })); } catch (e) {}
+        }
+
+        async function poolMap(items, worker, concurrency, onProgress) {
+            const results = new Array(items.length);
+            let idx = 0, done = 0;
+            async function runner() {
+                while (idx < items.length) {
+                    const i = idx++;
+                    try { results[i] = await worker(items[i], i); } catch (e) { results[i] = null; }
+                    done++;
+                    if (onProgress) onProgress(done, items.length);
+                }
+            }
+            const runners = Array.from({ length: Math.min(concurrency, items.length) }, runner);
+            await Promise.all(runners);
+            return results;
+        }
+
+        async function obterEstacoes() {
+            const cached = cacheGet("estacoes_cache", CACHE_TTL_ESTACOES);
+            if (cached) return cached;
+            const [autoR, convR] = await Promise.all([
+                fetch(`${API_TEMPO}/estacoes/T`).then(r => r.json()),
+                fetch(`${API_TEMPO}/estacoes/M`).then(r => r.json())
+            ]);
+            let all = [...autoR, ...convR];
+            all = all.map(r => {
+                const norm = {};
+                for (const k in r) norm[k.toLowerCase()] = r[k];
+                norm.cd_estacao = String(norm.cd_estacao || "").toUpperCase();
+                return norm;
+            });
+            all = all.filter(r => !ESTACOES_EXCLUIDAS.has(r.cd_estacao) && !/^[CFIS]/.test(r.cd_estacao));
+            cacheSet("estacoes_cache", all);
+            return all;
+        }
+
+        async function obterVitral(codigo) {
+            const key = "vitral_" + codigo;
+            const cached = cacheGet(key, CACHE_TTL_VITRAL);
+            if (cached) return cached;
+            try {
+                const resp = await fetch(`${API_VITRAL}/dados/mobile/${codigo}`);
+                if (!resp.ok) return null;
+                const data = await resp.json();
+                cacheSet(key, data);
+                return data;
+            } catch (e) { return null; }
+        }
+
+        async function obterDadosHistoricosApitempo(codigo, dataIniStr, dataFimStr) {
+            const dIni = new Date(dataIniStr + "T00:00:00");
+            const dFim = new Date(dataFimStr + "T23:59:59");
+            let dadosUnificados = [];
+            let currentIni = new Date(dIni);
+
+            while (currentIni <= dFim) {
+                let currentFim = new Date(currentIni);
+                currentFim.setFullYear(currentFim.getFullYear() + 1);
+                currentFim.setDate(currentFim.getDate() - 1); 
+                if (currentFim > dFim) currentFim = new Date(dFim);
+                const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+                const url = `${API_TEMPO}/token/estacao/${fmt(currentIni)}/${fmt(currentFim)}/${codigo}/${TOKEN_API}`;
+                try {
+                    const r = await fetch(url);
+                    if (r.ok) {
+                        const data = await r.json();
+                        if (Array.isArray(data)) dadosUnificados = dadosUnificados.concat(data);
+                    }
+                } catch (e) { console.error("Erro segmento histórico:", e); }
+                currentIni = new Date(currentFim);
+                currentIni.setDate(currentIni.getDate() + 1);
+            }
+            return dadosUnificados;
+        }
+
+        function parseDataHoraUTC(data, hora) {
+            if (!data || hora === undefined || hora === null) return null;
+            const hh = String(hora).replace(":", "").padStart(4, "0").slice(0, 2);
+            const dt = new Date(`${data}T${hh}:00:00Z`);
+            return isNaN(dt.getTime()) ? null : dt;
+        }
+
+        function horasDesdeTransmissao(data, hora) {
+            const dt = parseDataHoraUTC(data, hora);
+            if (!dt) return null;
+            
+            const agora = new Date();
+            let referencia = new Date(agora);
+            
+            // Garantia dos primeiros 25 min da hora cheia:
+            // Se ainda não passou dos 25 min da hora cheia atual, considera a hora cheia anterior como referência
+            if (agora.getUTCMinutes() <= 25) {
+                referencia.setUTCHours(referencia.getUTCHours() - 1, 0, 0, 0);
+            } else {
+                referencia.setUTCMinutes(0, 0, 0);
+            }
+            
+            const diff = (referencia.getTime() - dt.getTime()) / 3600000;
+            return diff < 0 ? 0 : diff;
+        }
+
+        function classificarAtraso(min) {
+            if (min === null || min === undefined || isNaN(min)) return "SEM MENSAGEM";
+            if (min <= 30) return "<=30 min";
+            if (min <= 60) return "31-60 min";
+            if (min <= 90) return "61-90 min";
+            return ">90 min";
+        }
+
+        function tipoTransmissao(codigo) {
+            codigo = String(codigo);
+            if (codigo.startsWith("A")) return "📡 GOES";
+            if (codigo.startsWith("B")) return "📺 TELEBRAS";
+            return "🚜 AUTOTRAC";
+        }
+
+        function analisarSensor(registros, sensor, situacaoEstacao) {
+            if (!registros || registros.length === 0) return "PANE";
+            const validos = [];
+            let isolado = false;
+            for (const r of registros) {
+                const valor = r[sensor.toUpperCase()];
+                const data = r.DT_MEDICAO, hora = r.HR_MEDICAO;
+                if (!data || !hora) continue;
+                const horas = horasDesdeTransmissao(data, hora);
+                if (horas === null) continue;
+                if (valor && String(valor).includes("*")) isolado = true;
+                if (valor !== null && valor !== undefined && valor !== "" && valor !== "-") validos.push(horas);
+            }
+            if (validos.length === 0) return (situacaoEstacao || "").toUpperCase() === "OPERANTE" ? "PAROU" : "PANE";
+            const horasSemDado = Math.min(...validos);
+            if (isolado) return "ISOLADO";
+            if (horasSemDado >= 72) return "PAROU";
+            if (horasSemDado >= 2) return "ATENÇÃO";
+            return "OPERANTE";
+        }
+
+        function statusOperacional(lista) {
+            if (lista.every(s => s === "PANE")) return "PANE";
+            if (lista.includes("PAROU")) return "PAROU";
+            if (lista.includes("RETORNOU")) return "RETORNOU";
+            if (lista.includes("ISOLADO")) return "ISOLADO";
+            if (lista.includes("ATENÇÃO")) return "ATENÇÃO";
+            return "OPERANTE";
+        }
+
+        async function processarEstacao(row) {
+            const codigo = String(row.cd_estacao);
+            const vitral = await obterVitral(codigo);
+            if (vitral === null) return null;
+            const registros = vitral["10 dias"] || [];
+            let temp_max = null, temp_min = null, umd_max = null, umd_min = null;
+            let ven_dir = null, ven_vel = null, ven_raj = null, chuva = null;
+            let ultima = "SEM DADOS", dias = null;
+
+            if (registros.length > 0) {
+                const r = registros[0];
+                temp_max = r.TEM_MAX; temp_min = r.TEM_MIN; umd_max = r.UMD_MAX; umd_min = r.UMD_MIN;
+                ven_dir = r.VEN_DIR; ven_vel = r.VEN_VEL; ven_raj = r.VEN_RAJ; chuva = r.CHUVA;
+                const data = r.DT_MEDICAO, hora = r.HR_MEDICAO;
+                if (data && hora) {
+                    const dt = parseDataHoraUTC(data, hora);
+                    if (dt) {
+                        const hh = String(hora).replace(":", "").padStart(4, "0").slice(0, 2);
+                        ultima = `${data} ${hh}00`;
+                        dias = Math.round(((Date.now() - dt.getTime()) / 86400000) * 10) / 10;
+                    }
+                }
+            }
+
+            const uf = String(row.sg_estado || "").toUpperCase();
+            const linha = {
+                "CÓDIGO": codigo, "NOME ESTAÇÃO": row.dc_nome || "", "UF": row.sg_estado || "",
+                "REGIÃO": REGIOES[uf] || "NÃO DEFINIDA", "LATITUDE": row.vl_latitude, "LONGITUDE": row.vl_longitude,
+                "SITUAÇÃO ESTAÇÃO": String(row.cd_situacao || "DESCONHECIDA").toUpperCase(),
+                "ÚLTIMA TRANSMISSÃO": ultima, "DIAS SEM TRANSMISSÃO": dias,
+                "TEMP_MAX": temp_max, "TEMP_MIN": temp_min, "UMD_MAX": umd_max, "UMD_MIN": umd_min,
+                "VEN_DIR": ven_dir, "VEN_VEL": ven_vel, "VEN_RAJ": ven_raj, "CHUVA_1H": chuva
+            };
+
+            const statusLista = [];
+            for (const [chave, nome] of Object.entries(SENSORES)) {
+                const status = analisarSensor(registros, chave, row.cd_situacao || "");
+                linha[nome] = status;
+                statusLista.push(status);
+            }
+            linha["STATUS OPERACIONAL"] = statusOperacional(statusLista);
+
+            const situacao = linha["SITUAÇÃO ESTAÇÃO"];
+            const diasSem = linha["DIAS SEM TRANSMISSÃO"];
+
+            if (situacao.includes("OPERANTE") && diasSem !== null && diasSem >= 3) {
+                linha["STATUS OPERACIONAL"] = "PAROU";
+            } else if (situacao.includes("PANE") && diasSem !== null && diasSem <= 2) {
+                let dadosValidos = 0;
+                for (const r of registros) {
+                    let possuiDado = false;
+                    for (const s of Object.keys(SENSORES)) {
+                        const v = r[s.toUpperCase()];
+                        if (v !== null && v !== undefined && v !== "" && v !== "-") { possuiDado = true; break; }
+                    }
+                    if (possuiDado) dadosValidos++;
+                }
+                if (dadosValidos >= 48) linha["STATUS OPERACIONAL"] = "RETORNOU";
+            }
+
+            linha._registros = registros;
+            return linha;
+        }
+
+        async function processarTodasEstacoes() {
+            const estacoes = await obterEstacoes();
+            const fill = document.getElementById("progressFill");
+            const txt = document.getElementById("progressText");
+
+            const resultados = await poolMap(estacoes, processarEstacao, MAX_CONCURRENT, (done, tot) => {
+                const pct = ((done / tot) * 100).toFixed(1);
+                fill.style.width = pct + "%";
+                txt.textContent = `Processadas: ${done} / ${tot} estações`;
+            });
+
+            const df = resultados.filter(r => r !== null);
+            const agoraUTC = Date.now();
+            for (const linha of df) {
+                let dtUltima = null;
+                if (linha["ÚLTIMA TRANSMISSÃO"] !== "SEM DADOS") {
+                    const [d, h] = linha["ÚLTIMA TRANSMISSÃO"].split(" ");
+                    dtUltima = new Date(`${d}T${h.slice(0,2)}:00:00Z`);
+                }
+                linha._dtUltima = dtUltima;
+                
+                if (dtUltima) {
+                    const agora = new Date();
+                    let ref = new Date(agora);
+                    if (agora.getUTCMinutes() <= 25) {
+                        ref.setUTCHours(ref.getUTCHours() - 1, 0, 0, 0);
+                    } else {
+                        ref.setUTCMinutes(0, 0, 0);
+                    }
+                    const diffMin = (ref.getTime() - dtUltima.getTime()) / 60000;
+                    linha.ATRASO_MIN = diffMin < 0 ? 0 : diffMin;
+                } else {
+                    linha.ATRASO_MIN = null;
+                }
+
+                linha["STATUS TELEMETRIA"] = classificarAtraso(linha.ATRASO_MIN);
+                linha["TIPO TRANSMISSÃO"] = tipoTransmissao(linha["CÓDIGO"]);
+            }
+            df.sort((a, b) => a["CÓDIGO"].localeCompare(b["CÓDIGO"]));
+            fill.style.width = "100%";
+            txt.textContent = `Processamento concluído: ${df.length} estações.`;
+            setTimeout(() => { fill.style.width = "0%"; txt.textContent = ""; }, 2500);
+            return df;
+        }
+
+        function emoji(status) { return EMOJI_STATUS[status] || status; }
+        function statusPuro(emojiStr) { return String(emojiStr).replace(/^[^\s]+\s/, "").trim(); }
+        function statusClass(status) {
+            const s = String(status).replace(/[^\wÇç]/g, "").toUpperCase().replace("ATENÇÃO", "ATENCAO");
+            if (s.includes("OPERANTE")) return "status-OPERANTE";
+            if (s.includes("ATENCAO")) return "status-ATENCAO";
+            if (s.includes("ISOLADO")) return "status-ISOLADO";
+            if (s.includes("PANE")) return "status-PANE";
+            if (s.includes("PAROU")) return "status-PAROU";
+            if (s.includes("RETORNOU")) return "status-RETORNOU";
+            return "";
+        }
+
+        function atualizarKPIs(df) {
+            const count = (statusStr) => df.filter(r => r["STATUS OPERACIONAL"] === statusStr).length;
+            document.getElementById("kpiTotal").textContent = df.length;
+            document.getElementById("kpiOperante").textContent = count("OPERANTE");
+            document.getElementById("kpiAtencao").textContent = count("ATENÇÃO");
+            document.getElementById("kpiIsolado").textContent = count("ISOLADO");
+            document.getElementById("kpiPane").textContent = count("PANE");
+            document.getElementById("kpiParou").textContent = count("PAROU");
+            document.getElementById("kpiRetornou").textContent = count("RETORNOU");
+        }
+
+        function montarFiltros(df) {
+            const pillsDiv = document.getElementById("statusPills");
+            pillsDiv.innerHTML = "";
+            STATUS_KEYS.forEach(s => {
+                const p = document.createElement("span");
+                p.className = "pill active";
+                p.textContent = emoji(s);
+                p.onclick = () => {
+                    if (statusAtivos.has(s)) { statusAtivos.delete(s); p.classList.remove("active"); } 
+                    else { statusAtivos.add(s); p.classList.add("active"); }
+                    aplicarFiltros();
+                };
+                pillsDiv.appendChild(p);
+            });
+            const regioes = [...new Set(df.map(r => r["REGIÃO"]))].sort();
+            const sel = document.getElementById("regiaoFiltro");
+            sel.innerHTML = "";
+            regioes.forEach(r => {
+                const opt = document.createElement("option");
+                opt.value = r; opt.textContent = r; opt.selected = true;
+                sel.appendChild(opt);
+            });
+            sel.onchange = aplicarFiltros;
+        }
+
+        function selecionarTodasRegioes() { Array.from(document.getElementById("regiaoFiltro").options).forEach(o => o.selected = true); aplicarFiltros(); }
+        function desmarcarTodasRegioes() { Array.from(document.getElementById("regiaoFiltro").options).forEach(o => o.selected = false); aplicarFiltros(); }
+        function limparRegioes() { desmarcarTodasRegioes(); }
+        function regioesSelecionadas() { return Array.from(document.getElementById("regiaoFiltro").selectedOptions).map(o => o.value); }
+        function aplicarFiltros() {
+            const regs = regioesSelecionadas();
+            DF_FILTRADO = DF.filter(r => regs.includes(r["REGIÃO"]) && statusAtivos.has(statusPuro(r["STATUS OPERACIONAL"])));
+            atualizarKPIs(DF_FILTRADO);
+            renderizarMapas(DF_FILTRADO);
+            aplicarOrdenacao();
+        }
+
+        function initMapas() {
+            mapOp = L.map("mapOperacional", { preferCanvas: true }).setView([-14.5, -52], 4);
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(mapOp);
+            groupOp = L.layerGroup().addTo(mapOp);
+
+            mapTel = L.map("mapTelemetria", { preferCanvas: true }).setView([-14.5, -52], 4);
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(mapTel);
+            groupTel = L.layerGroup().addTo(mapTel);
+
+            mapComp = L.map("mapComparacao", { preferCanvas: true }).setView([-14.5, -52], 4);
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(mapComp);
+            groupComp = L.layerGroup().addTo(mapComp);
+            groupCompSelected = L.layerGroup().addTo(mapComp);
+
+            montarLegenda("legendOperacional", CORES);
+            montarLegenda("legendTelemetria", CORES_TELEMETRIA);
+        }
+
+        function montarLegenda(elId, mapCores) {
+            const el = document.getElementById(elId);
+            el.innerHTML = "";
+            for (const [k, v] of Object.entries(mapCores)) {
+                el.innerHTML += `<span><span class="dot" style="background:${v}"></span>${k}</span>`;
+            }
+        }
+
+        const MSG_DISCRETA_JANELA = `<div class="popup-window-note">* Janela de transmissão considerada: até os primeiros 25 min de cada hora cheia.</div>`;
+
+        function popupOperacional(r) {
+            return `<b>${r["NOME ESTAÇÃO"]}</b><br><br>📍 Código: ${r["CÓDIGO"]}<br>🗺️ UF: ${r["UF"]}<br>🕐 Última atualização: ${r["ÚLTIMA TRANSMISSÃO"]}<br><br>
+            <b>🌡️ Temperatura</b><br>Máxima: ${r.TEMP_MAX ?? "-"} °C<br>Mínima: ${r.TEMP_MIN ?? "-"} °C<br><br>
+            <b>💧 Umidade</b><br>Máxima: ${r.UMD_MAX ?? "-"} %<br>Mínima: ${r.UMD_MIN ?? "-"} %<br><br>
+            <b>🌬️ Vento</b><br>Direção: ${r.VEN_DIR ?? "-"} °<br>Velocidade: ${r.VEN_VEL ?? "-"} m/s<br>Rajada: ${r.VEN_RAJ ?? "-"} m/s<br><br>
+            <b>🌧️ Chuva</b><br>Última hora: ${r.CHUVA_1H ?? "-"} mm
+            ${MSG_DISCRETA_JANELA}`;
+        }
+
+        function popupTelemetria(r) {
+            const atraso = r.ATRASO_MIN !== null ? r.ATRASO_MIN.toFixed(1) + " min" : "N/D";
+            return `<b>${r["NOME ESTAÇÃO"]}</b><br><br>📍 Código: ${r["CÓDIGO"]}<br>📡 Tipo: ${r["TIPO TRANSMISSÃO"]}<br>± Atraso: ${atraso}<br>🕐 Última transmissão: ${r["ÚLTIMA TRANSMISSÃO"]}
+            ${MSG_DISCRETA_JANELA}`;
+        }
+
+        function coordenadasValidas(r) {
+            let lat = parseFloat(String(r.LATITUDE).replace(",", ".").trim());
+            let lon = parseFloat(String(r.LONGITUDE).replace(",", ".").trim());
+            if (isNaN(lat) || isNaN(lon) || lat < -35 || lat > 10 || lon < -80 || lon > -20) return null;
+            return { lat, lon };
+        }
+
+        function renderizarMapas(df) {
+            groupOp.clearLayers(); groupTel.clearLayers();
+            let validas = 0;
+            df.forEach(r => {
+                const coords = coordenadasValidas(r);
+                if (!coords) return;
+                validas++;
+                L.circleMarker([coords.lat, coords.lon], { radius: 4, fillColor: CORES[statusPuro(r["STATUS OPERACIONAL"])] || "#999", color: "#222", weight: 1, fillOpacity: 0.9 })
+                    .bindPopup(popupOperacional(r)).addTo(groupOp);
+                L.circleMarker([coords.lat, coords.lon], { radius: 4, fillColor: CORES_TELEMETRIA[r["STATUS TELEMETRIA"]] || "#808080", color: "#222", weight: 1, fillOpacity: 0.9 })
+                    .bindPopup(popupTelemetria(r)).addTo(groupTel);
+            });
+            document.getElementById("estacoesPlotadas").textContent = `Estações plotadas no mapa: ${validas}`;
+        }
+
+        function renderizarMapaComparacao(df) {
+            groupComp.clearLayers();
+            if (groupCompSelected) groupCompSelected.clearLayers();
+            markersComp = {};
+            df.forEach(r => {
+                const coords = coordenadasValidas(r);
+                if (!coords) return;
+                const marker = L.circleMarker([coords.lat, coords.lon], { radius: 4, fillColor: "#808080", color: "#222", weight: 1, fillOpacity: 0.9 })
+                    .bindPopup(`<b>${r["NOME ESTAÇÃO"]}</b><br>📍 Código: ${r["CÓDIGO"]}<br>🗺️ UF: ${r["UF"]}${MSG_DISCRETA_JANELA}`).addTo(groupComp);
+                markersComp[r["CÓDIGO"]] = marker;
+            });
+            atualizarMapaComparacao();
+        }
+
+        function atualizarMapaComparacao() {
+            let selectedBounds = L.latLngBounds();
+            groupCompSelected.clearLayers();
+            const pulseIcon = L.divIcon({ className: 'pulsing-icon', iconSize: [30, 30], iconAnchor: [15, 15], html: '<div class="ring"></div>' });
+
+            for (const [cod, marker] of Object.entries(markersComp)) {
+                const isSelected = comparacaoSelecionadas.includes(cod);
+                marker.setStyle({ fillColor: isSelected ? "#2ca02c" : "#808080" });
+                if (isSelected) {
+                    marker.bringToFront();
+                    selectedBounds.extend(marker.getLatLng());
+                    L.marker(marker.getLatLng(), { icon: pulseIcon, interactive: false }).addTo(groupCompSelected);
+                }
+            }
+            if (comparacaoSelecionadas.length > 0 && selectedBounds.isValid()) {
+                mapComp.fitBounds(selectedBounds, { padding: [50, 50], maxZoom: 8 });
+            } else { mapComp.setView([-14.5, -52], 4); }
+        }
+
+        const COLUNAS_TABELA = [
+            "CÓDIGO", "NOME ESTAÇÃO", "UF", "REGIÃO", "SITUAÇÃO ESTAÇÃO", "STATUS OPERACIONAL",
+            "ÚLTIMA TRANSMISSÃO", "DIAS SEM TRANSMISSÃO", "STATUS TELEMETRIA", "TIPO TRANSMISSÃO",
+            "TEMP_MAX", "TEMP_MIN", "UMD_MAX", "UMD_MIN", "VEN_DIR", "VEN_VEL", "VEN_RAJ", "CHUVA_1H",
+            ...Object.values(SENSORES)
+        ];
+        const COLUNAS_NUMERICAS = new Set(["DIAS SEM TRANSMISSÃO", "TEMP_MAX", "TEMP_MIN", "UMD_MAX", "UMD_MIN", "VEN_DIR", "VEN_VEL", "VEN_RAJ", "CHUVA_1H"]);
+
+        function valorParaOrdenacao(r, coluna) {
+            let val = r[coluna];
+            if (coluna === "SITUAÇÃO ESTAÇÃO" || coluna === "STATUS OPERACIONAL" || Object.values(SENSORES).includes(coluna)) return String(val ?? "");
+            if (COLUNAS_NUMERICAS.has(coluna)) {
+                const num = parseFloat(String(val).replace(",", "."));
+                return isNaN(num) ? -Infinity : num;
+            }
+            if (coluna === "ÚLTIMA TRANSMISSÃO") return r._dtUltima ? r._dtUltima.getTime() : -Infinity;
+            return String(val ?? "").toLowerCase();
+        }
+
+        function aplicarOrdenacao() {
+            let dados = [...DF_FILTRADO];
+            if (ordenacaoAtual.coluna) {
+                const col = ordenacaoAtual.coluna;
+                const dir = ordenacaoAtual.direcao;
+                dados.sort((a, b) => {
+                    const va = valorParaOrdenacao(a, col), vb = valorParaOrdenacao(b, col);
+                    if (typeof va === "number" && typeof vb === "number") return (va - vb) * dir;
+                    return String(va).localeCompare(String(vb), "pt-BR") * dir;
+                });
+            }
+            DF_ORDENADO = dados;
+            renderizarTabela(DF_ORDENADO);
+        }
+        function ordenarPorColuna(coluna) {
+            if (ordenacaoAtual.coluna === coluna) ordenacaoAtual.direcao *= -1;
+            else { ordenacaoAtual.coluna = coluna; ordenacaoAtual.direcao = 1; }
+            aplicarOrdenacao();
+        }
+
+        function renderizarTabela(df) {
+            const head = document.getElementById("tabelaHead"), body = document.getElementById("tabelaBody");
+            head.innerHTML = COLUNAS_TABELA.map(c => {
+                let arrow = (ordenacaoAtual.coluna === c) ? `<span class="sort-arrow">${ordenacaoAtual.direcao === 1 ? "▲" : "▼"}</span>` : "";
+                return `<th onclick="ordenarPorColuna('${c.replace(/'/g,"\\'")}')">${c}${arrow}</th>`;
+            }).join("");
+            body.innerHTML = df.map(r => "<tr>" + COLUNAS_TABELA.map(c => {
+                let val = r[c];
+                if (c === "SITUAÇÃO ESTAÇÃO" || c === "STATUS OPERACIONAL" || Object.values(SENSORES).includes(c)) {
+                    val = EMOJI_STATUS[val] || val; return `<td class="${statusClass(val)}">${val}</td>`;
+                }
+                return `<td>${val ?? ""}</td>`;
+            }).join("") + "</tr>").join("");
+        }
+
+        function haversine(lat1, lon1, lat2, lon2) {
+            const R = 6371; const dLat = (lat2 - lat1) * Math.PI / 180; const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+
+        function renderizarListaComparacao(df, filtroTexto) {
+            const cont = document.getElementById("compEstacoesList");
+            let lista = [...df];
+            if (comparacaoSelecionadas.length > 0) {
+                const primeira = df.find(r => r["CÓDIGO"] === comparacaoSelecionadas[0]);
+                if (primeira) {
+                    const lat1 = parseFloat(String(primeira.LATITUDE).replace(",", ".")), lon1 = parseFloat(String(primeira.LONGITUDE).replace(",", "."));
+                    lista.sort((a, b) => {
+                        if (a["CÓDIGO"] === comparacaoSelecionadas[0]) return -1;
+                        if (b["CÓDIGO"] === comparacaoSelecionadas[0]) return 1;
+                        const lat2a = parseFloat(String(a.LATITUDE).replace(",", ".")), lon2a = parseFloat(String(a.LONGITUDE).replace(",", "."));
+                        const lat2b = parseFloat(String(b.LATITUDE).replace(",", ".")), lon2b = parseFloat(String(b.LONGITUDE).replace(",", "."));
+                        const da = (isNaN(lat2a) || isNaN(lon2a)) ? Infinity : haversine(lat1, lon1, lat2a, lon2a);
+                        const db = (isNaN(lat2b) || isNaN(lon2b)) ? Infinity : haversine(lat1, lon1, lat2b, lon2b);
+                        return da - db;
+                    });
+                }
+            } else { lista.sort((a, b) => a["CÓDIGO"].localeCompare(b["CÓDIGO"])); }
+
+            if (filtroTexto) {
+                const ft = filtroTexto.toLowerCase();
+                lista = lista.filter(r => r["CÓDIGO"].toLowerCase().includes(ft) || String(r["NOME ESTAÇÃO"]).toLowerCase().includes(ft));
+            }
+
+            cont.innerHTML = "";
+            lista.forEach(r => {
+                const cod = r["CÓDIGO"], label = document.createElement("label"), chk = document.createElement("input");
+                chk.type = "checkbox"; chk.value = cod; chk.checked = comparacaoSelecionadas.includes(cod);
+                chk.onchange = () => {
+                    if (chk.checked) {
+                        if (comparacaoSelecionadas.length >= 5) { chk.checked = false; alert("Selecione no máximo 5."); return; }
+                        comparacaoSelecionadas.push(cod);
+                    } else { comparacaoSelecionadas = comparacaoSelecionadas.filter(c => c !== cod); }
+                    renderizarListaComparacao(DF, document.getElementById("compBusca").value);
+                    atualizarMapaComparacao();
+                };
+                const span = document.createElement("span"); span.textContent = `${cod} - ${r["NOME ESTAÇÃO"]}`;
+                label.appendChild(chk); label.appendChild(span); cont.appendChild(label);
+            });
+        }
+
+        function montarControlesComparacao(df) {
+            comparacaoSelecionadas = [];
+            renderizarListaComparacao(df, "");
+            document.getElementById("compBusca").oninput = (e) => renderizarListaComparacao(DF, e.target.value);
+            definirPeriodoPadrao();
+        }
+
+        function definirPeriodoPadrao() {
+            const hoje = new Date(), dezDiasAtras = new Date(hoje); dezDiasAtras.setDate(dezDiasAtras.getDate() - 10);
+            const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+            document.getElementById("compDataInicio").value = fmt(dezDiasAtras); document.getElementById("compDataFim").value = fmt(hoje);
+        }
+
+        function obterPeriodoComparacao() {
+            const iniStr = document.getElementById("compDataInicio").value, fimStr = document.getElementById("compDataFim").value;
+            let inicio = null, fim = null;
+            if (iniStr) inicio = new Date(iniStr + "T00:00:00");
+            if (fimStr) fim = new Date(fimStr + "T23:59:59");
+            if (!inicio || isNaN(inicio.getTime())) { inicio = new Date(); inicio.setDate(inicio.getDate() - 10); inicio.setHours(0, 0, 0, 0); }
+            if (!fim || isNaN(fim.getTime())) { fim = new Date(); fim.setHours(23, 59, 59, 999); }
+            return { inicio, fim, iniStr, fimStr };
+        }
+
+        function seriesFromRegistros(registros, variavel, inicio, fim) {
+            const points = [];
+            if (!registros || !Array.isArray(registros)) return points;
+
+            let ultimoHorario = null;
+
+            for (const r of registros) {
+                if (!r.DT_MEDICAO || !r.HR_MEDICAO) continue;
+
+                const hh = String(r.HR_MEDICAO).replace(":", "").padStart(4, "0").slice(0, 2);
+                const dt = new Date(`${r.DT_MEDICAO}T${hh}:00:00Z`);
+
+                if (inicio && fim) {
+                    if (dt < inicio || dt > fim) continue;
+                }
+
+                if (ultimoHorario) {
+                    const diffHoras = (dt - ultimoHorario) / 3600000;
+                    if (diffHoras > 1) {
+                        let t = new Date(ultimoHorario);
+                        while (true) {
+                            t = new Date(t.getTime() + 3600000);
+                            if (t >= dt) break;
+                            points.push({ x: new Date(t), y: null });
+                        }
+                    }
+                }
+
+                const raw = String(r[variavel] ?? "").replace("*","");
+                const val = parseFloat(raw.replace(",","."));
+
+                points.push({
+                    x: dt,
+                    y: isNaN(val) ? null : val
+                });
+
+                ultimoHorario = dt;
+            }
+
+            return points.sort((a,b)=>a.x-b.x);
+        }
+
+        /* =============================================================
+            PLOTAGEM HISTÓRICA (APITEMPO — PLOTLY com Opacidade 50%)
+            ============================================================= */
+        async function plotarComparacaoMultiVariavel() {
+            const codigos = comparacaoSelecionadas.slice(0, 5);
+            if (codigos.length === 0) { alert("Selecione ao menos uma estação."); return; }
+
+            const { inicio, fim, iniStr, fimStr } = obterPeriodoComparacao();
+            const grid = document.getElementById("comparacaoMultiGrid");
+            const btnPlotar = document.getElementById("btnPlotar");
+            
+            const loadingContainer = document.getElementById("chartLoadingContainer");
+            const loadingBar = document.getElementById("chartLoadingBar");
+            const loadingText = document.getElementById("chartLoadingText");
+
+            btnPlotar.disabled = true;
+            loadingContainer.style.display = "block";
+            loadingBar.style.width = "10%", loadingText.textContent = "Buscando dados históricos...";
+            grid.innerHTML = "";
+
+            const historicoEstacoes = {};
+            let progressoAtual = 10;
+            const incremento = 70 / codigos.length;
+
+            for (let i = 0; i < codigos.length; i++) {
+                const codigo = codigos[i];
+                historicoEstacoes[codigo] = await obterDadosHistoricosApitempo(codigo, iniStr, fimStr);
+                progressoAtual += incremento;
+                loadingBar.style.width = Math.min(progressoAtual, 85) + "%";
+                loadingText.textContent = `Carregando dados da estação ${codigo} (${i + 1}/${codigos.length})...`;
+            }
+
+            loadingBar.style.width = "90%";
+            loadingText.textContent = "Renderizando gráficos Plotly...";
+
+            Object.keys(NOMES_VARIAVEIS).forEach((varKey) => {
+                const varCfg = NOMES_VARIAVEIS[varKey];
+                const datasetsInfo = [];
+                const traces = [];
+
+                codigos.forEach((codigo, idxEst) => {
+                    const registrosHist = historicoEstacoes[codigo];
+                    const pts = seriesFromRegistros(registrosHist, varKey, inicio, fim);
+                    const cor = PALETA_ESTACOES[idxEst % PALETA_ESTACOES.length];
+
+                    datasetsInfo.push({ codigo, pontos: pts });
+                    const x = pts.map(p => p.x.toISOString()), y = pts.map(p => p.y);
+
+                    let trace;
+                    if (varCfg.tipo === "scatter_markers") {
+                        trace = { x, y, type: "scatter", mode: "markers", marker: { size: 5, color: cor }, connectgaps:false, name: `${codigo}`, showlegend: true, opacity: 0.7 };
+                    } else if (varCfg.tipo === "bar") {
+                        trace = { x, y, type: "bar", marker: { color: cor }, connectgaps:false, name: `${codigo}`, showlegend: true, opacity: 0.7 };
+                    } else {
+                        trace = { x, y, type: "scatter", mode: "lines", line: { width: 1.5, color: cor }, connectgaps:false, name: `${codigo}`, showlegend: true, opacity: 0.7 };
+                    }
+                    traces.push(trace);
+                });
+
+                const divId = `plotly_${varKey}_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+
+                const box = document.createElement("div"); box.className = "chart-box-plotly";
+                const header = document.createElement("div"); header.className = "chart-header";
+                
+                const tituloEl = document.createElement("span"); tituloEl.className = "chart-title"; tituloEl.textContent = varCfg.titulo;
+                header.appendChild(tituloEl);
+                
+                const legendaEl = document.createElement("span"); legendaEl.className = "chart-legend-custom";
+                codigos.forEach((codigo, idxEst) => {
+                    const cor = PALETA_ESTACOES[idxEst % PALETA_ESTACOES.length];
+                    legendaEl.innerHTML += `<span><span class="legend-dot" style="background:${cor}"></span>${codigo}</span>`;
+                });
+                header.appendChild(legendaEl);
+
+                const btnCSV = document.createElement("button"); btnCSV.className = "btn-csv"; btnCSV.textContent = "⬇️ CSV";
+                btnCSV.onclick = () => exportarCSV(varKey, datasetsInfo); header.appendChild(btnCSV);
+                box.appendChild(header);
+
+                const plotDiv = document.createElement("div"); plotDiv.id = divId; plotDiv.style.width = "100%"; plotDiv.style.height = "300px";
+                box.appendChild(plotDiv); grid.appendChild(box);
+
+                const yaxisConfig = { title: varCfg.unidade, gridcolor: "#30363d", zerolinecolor: "#30363d" };
+                if (varKey === "VEN_DIR") { yaxisConfig.range = [0, 360]; yaxisConfig.dtick = 45; }
+
+                Plotly.newPlot(divId, traces, {
+                    title: "", template: "plotly_dark", height: 300, hovermode: "x unified",
+                    margin: { l: 50, r: 20, t: 10, b: 40 }, paper_bgcolor: "#161b22", plot_bgcolor: "#161b22",
+                    font: { color: "#e6edf3", size: 10 }, showlegend: false,
+                    dragmode: "zoom",
+                    xaxis: { title: "Data/Hora (UTC)", gridcolor: "#30363d", zerolinecolor: "#30363d" }, yaxis: yaxisConfig
+                }, { responsive: true, displayModeBar: true, modeBarButtonsToRemove: ["lasso2d", "select2d"] });
+            });
+
+            const registrosVento = historicoEstacoes[codigos[0]] || [];
+            plotarVentoSetas(registrosVento, "chartVentoSetasApitempo", inicio, fim);
+            plotarVentoRadar(registrosVento, "chartVentoRadarApitempo", inicio, fim);
+
+            loadingBar.style.width = "100%";
+            loadingText.textContent = "Gráficos carregados com sucesso!";
+            setTimeout(() => { loadingContainer.style.display = "none"; loadingBar.style.width = "0%"; loadingText.textContent = ""; }, 1500);
+            btnPlotar.disabled = false;
+        }
+
+        /* =============================================================
+            PLOTAGEM RECENTE (VITRAL — PLOTLY com Opacidade 50%)
+            ============================================================= */
+        function plotarComparacaoVitral() {
+            const codigos = comparacaoSelecionadas.slice(0, 5);
+            if (codigos.length === 0) { alert("Selecione ao menos uma estação."); return; }
+
+            const grid = document.getElementById("comparacaoVitralGrid");
+            grid.innerHTML = "";
+
+            Object.keys(NOMES_VARIAVEIS).forEach((varKey) => {
+                const varCfg = NOMES_VARIAVEIS[varKey];
+                const datasetsInfo = [];
+                const traces = [];
+
+                codigos.forEach((codigo, idxEst) => {
+                    const linha = DF.find(r => r["CÓDIGO"] === codigo);
+                    const registros = linha ? linha._registros : [];
+                    const pts = seriesFromRegistros(registros, varKey);
+                    const cor = PALETA_ESTACOES[idxEst % PALETA_ESTACOES.length];
+
+                    datasetsInfo.push({ codigo, pontos: pts });
+                    const x = pts.map(p => p.x.toISOString()), y = pts.map(p => p.y);
+
+                    let trace;
+                    if (varCfg.tipo === "scatter_markers") {
+                        trace = { x, y, type: "scatter", mode: "markers", marker: { size: 5, color: cor }, connectgaps:false, name: `${codigo}`, showlegend: true, opacity: 0.7 };
+                    } else if (varCfg.tipo === "bar") {
+                        trace = { x, y, type: "bar", marker: { color: cor }, name: `${codigo}`, showlegend: true, opacity: 0.7 };
+                    } else {
+                        trace = { x, y, type: "scatter", mode: "lines", line: { width: 1.5, color: cor }, connectgaps:false, name: `${codigo}`, showlegend: true, opacity: 0.7 };
+                    }
+                    traces.push(trace);
+                });
+
+                const divId = `plotly_vitral_${varKey}_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+
+                const box = document.createElement("div"); box.className = "chart-box-plotly";
+                const header = document.createElement("div"); header.className = "chart-header";
+                
+                const tituloEl = document.createElement("span"); tituloEl.className = "chart-title"; tituloEl.textContent = varCfg.titulo;
+                header.appendChild(tituloEl);
+                
+                const legendaEl = document.createElement("span"); legendaEl.className = "chart-legend-custom";
+                codigos.forEach((codigo, idxEst) => {
+                    const cor = PALETA_ESTACOES[idxEst % PALETA_ESTACOES.length];
+                    legendaEl.innerHTML += `<span><span class="legend-dot" style="background:${cor}"></span>${codigo}</span>`;
+                });
+                header.appendChild(legendaEl);
+
+                const btnCSV = document.createElement("button"); btnCSV.className = "btn-csv"; btnCSV.textContent = "⬇️ CSV";
+                btnCSV.onclick = () => exportarCSV(varKey, datasetsInfo); header.appendChild(btnCSV);
+                box.appendChild(header);
+
+                const plotDiv = document.createElement("div"); plotDiv.id = divId; plotDiv.style.width = "100%"; plotDiv.style.height = "240px";
+                box.appendChild(plotDiv); grid.appendChild(box);
+
+                const yaxisConfig = { title: varCfg.unidade, gridcolor: "#30363d", zerolinecolor: "#30363d" };
+                if (varKey === "VEN_DIR") { yaxisConfig.range = [0, 360]; yaxisConfig.dtick = 45; }
+
+                Plotly.newPlot(divId, traces, {
+                    title: "", template: "plotly_dark", height: 240, hovermode: "x unified",
+                    margin: { l: 50, r: 20, t: 10, b: 40 }, paper_bgcolor: "#161b22", plot_bgcolor: "#161b22",
+                    font: { color: "#e6edf3", size: 10 }, showlegend: false,
+                    dragmode: "zoom",
+                    xaxis: { title: "Data/Hora (UTC)", gridcolor: "#30363d", zerolinecolor: "#30363d" }, yaxis: yaxisConfig
+                }, { responsive: true, displayModeBar: true, modeBarButtonsToRemove: ["lasso2d", "select2d"] });
+            });
+
+            const primeiraLinha = DF.find(r => r["CÓDIGO"] === codigos[0]);
+            const registrosVento = primeiraLinha ? primeiraLinha._registros : [];
+            plotarVentoSetas(registrosVento, "chartVentoSetasVitral");
+            plotarVentoRadar(registrosVento, "chartVentoRadarVitral");
+        }
+
+        /* =============================================================
+            GRÁFICOS DE VENTO (Chart.js — Opacidade 50%)
+            ============================================================= */
+        const FAIXAS_VENTO = [
+            { max: 2, cor: "#2ca02c", label: "Calmo (≤2 m/s)" },
+            { max: 5, cor: "#FFD966", label: "Moderado (2–5 m/s)" },
+            { max: 10, cor: "#F4B183", label: "Forte (5–10 m/s)" },
+            { max: Infinity, cor: "#D62728", label: "Muito Forte (>10 m/s)" }
+        ];
+
+        function corPorIntensidade(vel) {
+            for (const f of FAIXAS_VENTO) { if (vel <= f.max) return f.cor; }
+            return "#D62728";
+        }
+
+        function montarLegendaVento() {
+            document.querySelectorAll(".wind-legend").forEach(el => {
+                el.innerHTML = FAIXAS_VENTO.map(f => `<span><span class="dot" style="background:${f.cor}"></span>${f.label}</span>`).join("");
+            });
+        }
+
+        const setasVentoPlugin = {
+            id: "setasVentoPlugin",
+            afterDatasetsDraw(chart) {
+                const { ctx } = chart;
+                const meta = chart.getDatasetMeta(0);
+                const dataset = chart.data.datasets[0];
+                if (!meta || !dataset || !dataset.data) return;
+                meta.data.forEach((point, i) => {
+                    const raw = dataset.data[i];
+                    if (!raw || raw.dir === undefined) return;
+                    const { x, y } = point.getProps(["x", "y"], true);
+                    const anguloRad = ((raw.dir + 90) * Math.PI) / 180;
+                    
+                    const tamanho = 7 + Math.min(raw.y, 15);
+                    const cor = corPorIntensidade(raw.y);
+                    
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.rotate(anguloRad);
+                    ctx.beginPath();
+                    ctx.moveTo(tamanho, 0);
+                    ctx.lineTo(-tamanho * 0.5, tamanho * 0.4);
+                    ctx.lineTo(-tamanho * 0.5, -tamanho * 0.4);
+                    ctx.closePath();
+                    ctx.fillStyle = cor;
+                    ctx.globalAlpha = 0.5;
+                    ctx.fill();
+                    ctx.restore();
+                });
+            }
+        };
+        if (window.Chart) Chart.register(setasVentoPlugin);
+
+        function seriesVentoSetas(registros, inicio, fim) {
+            const pts = [];
+            for (const r of registros) {
+                if (!r.DT_MEDICAO || !r.HR_MEDICAO) continue;
+                const hh = String(r.HR_MEDICAO).replace(":", "").padStart(4, "0").slice(0, 2);
+                const dt = new Date(`${r.DT_MEDICAO}T${hh}:00:00Z`);
+                if (inicio && fim) { if (dt < inicio || dt > fim) continue; }
+                const vel = parseFloat(String(r.VEN_VEL ?? "").replace(",", "."));
+                const dir = parseFloat(String(r.VEN_DIR ?? "").replace(",", "."));
+                if (isNaN(vel) || isNaN(dir)) continue;
+                pts.push({ x: dt, y: vel, dir: dir });
+            }
+            return pts.sort((a, b) => a.x - b.x);
+        }
+
+        function plotarVentoSetas(registros, canvasId, inicio, fim) {
+            const pts = seriesVentoSetas(registros, inicio, fim);
+            if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+            montarLegendaVento();
+            
+            const ctx = document.getElementById(canvasId).getContext("2d");
+            chartInstances[canvasId] = new Chart(ctx, {
+                type: "scatter",
+                data: {
+                    datasets: [{
+                        label: "Vento (m/s)", data: pts, pointRadius: 0, showLine: false, borderColor: "rgba(47,129,247,0.15)"
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: (ctx) => `Vel: ${ctx.raw.y.toFixed(1)} m/s | Dir: ${ctx.raw.dir.toFixed(0)}°` } },
+                        zoom: ZOOM_PAN_OPTIONS
+                    },
+                    scales: {
+                        x: { type: 'time', time: { unit: 'hour' }, ticks: { color: "#e6edf3" }, grid: { color: "#30363d" } },
+                        y: { title: { display: true, text: "Velocidade do Vento (m/s)" }, ticks: { color: "#e6edf3" }, grid: { color: "#30363d" }, min: 0 }
+                    }
+                }
+            });
+        }
+
+        const SETORES_16 = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+        function setorDirecao(graus) { return SETORES_16[(Math.round(graus / 22.5) % 16 + 16) % 16]; }
+
+        function calcularRosaVentos(registros, inicio, fim) {
+            const soma = {}, contagem = {};
+            SETORES_16.forEach(s => { soma[s] = 0; contagem[s] = 0; });
+            for (const r of registros) {
+                if (!r.DT_MEDICAO || !r.HR_MEDICAO) continue;
+                const hh = String(r.HR_MEDICAO).replace(":", "").padStart(4, "0").slice(0, 2);
+                const dt = new Date(`${r.DT_MEDICAO}T${hh}:00:00Z`);
+                if (inicio && fim) { if (dt < inicio || dt > fim) continue; }
+                const vel = parseFloat(String(r.VEN_VEL ?? "").replace(",", ".")), dir = parseFloat(String(r.VEN_DIR ?? "").replace(",", "."));
+                if (isNaN(vel) || isNaN(dir)) continue;
+                const setor = setorDirecao(dir); soma[setor] += vel; contagem[setor] += 1;
+            }
+            return SETORES_16.map(s => contagem[s] > 0 ? soma[s] / contagem[s] : 0);
+        }
+
+        function plotarVentoRadar(registros, canvasId, inicio, fim) {
+            const medias = calcularRosaVentos(registros, inicio, fim);
+            if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+            const ctx = document.getElementById(canvasId).getContext("2d");
+            chartInstances[canvasId] = new Chart(ctx, {
+                type: "radar",
+                data: {
+                    labels: SETORES_16,
+                    datasets: [{
+                        label: "Velocidade média (m/s)",
+                        data: medias,
+                        backgroundColor: "rgba(47,129,247,0.12)",
+                        borderColor: "rgba(47,129,247,0.5)",
+                        pointBackgroundColor: medias.map(v => corPorIntensidade(v) + "80"),
+                        pointRadius: 4,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { labels: { color: "#e6edf3" } },
+                        zoom: { zoom: { wheel: { enabled: true, speed: 0.08 }, pinch: { enabled: true }, mode: "xy" }, pan: { enabled: true, mode: "xy" } }
+                    },
+                    scales: {
+                        r: {
+                            angleLines: { color: "#30363d" }, grid: { color: "#30363d" },
+                            pointLabels: { color: "#e6edf3", font: { size: 11 } },
+                            ticks: { color: "#e6edf3", backdropColor: "transparent" },
+                            suggestedMin: 0
+                        }
+                    }
+                }
+            });
+        }
+
+        function exportarCSV(varKey, datasetsInfo) {
+            const nomeArquivo = `${varKey}_${new Date().toISOString().slice(0, 10).replace(/-/g, "")}.csv`;
+            const todasDatas = new Set();
+            datasetsInfo.forEach(ds => ds.pontos.forEach(p => todasDatas.add(p.x.toISOString())));
+            const datasOrdenadas = [...todasDatas].sort();
+            let csv = "Data/Hora (UTC)" + datasetsInfo.map(ds => `,${ds.codigo}`).join("") + "\n";
+            datasOrdenadas.forEach(dtStr => {
+                csv += dtStr + datasetsInfo.map(ds => {
+                    const pt = ds.pontos.find(p => p.x.toISOString() === dtStr); return "," + (pt ? pt.y.toFixed(2) : "");
+                }).join("") + "\n";
+            });
+            const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" }), url = URL.createObjectURL(blob);
+            const link = document.createElement("a"); link.href = url; link.download = nomeArquivo; link.click(); URL.revokeObjectURL(url);
+        }
+
+        function baixarExcel() {
+            const dados = DF_ORDENADO.length ? DF_ORDENADO : DF_FILTRADO;
+            const linhas = dados.map(r => {
+                const obj = {};
+                COLUNAS_TABELA.forEach(c => {
+                    let val = r[c];
+                    if (c === "SITUAÇÃO ESTAÇÃO" || c === "STATUS OPERACIONAL" || Object.values(SENSORES).includes(c)) val = EMOJI_STATUS[val] || val;
+                    obj[c] = val ?? "";
+                }); return obj;
+            });
+            const ws = XLSX.utils.json_to_sheet(linhas), wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "MONITORAMENTO");
+            const agora = new Date(), nome = `MONITORAMENTO_${agora.toISOString().slice(0,10).replace(/-/g,"")}_${String(agora.getHours()).padStart(2,"0")}${String(agora.getMinutes()).padStart(2,"0")}.xlsx`;
+            XLSX.writeFile(wb, nome);
+        }
+
+        function toggleExportKML(e) { e.stopPropagation(); document.getElementById("kmlDropdown").classList.toggle("show"); }
+        document.addEventListener("click", () => document.getElementById("kmlDropdown").classList.remove("show"));
+
+        function hexToKmlColor(hex, alpha = "ff") {
+            hex = String(hex || "999999").replace("#", "");
+            if (hex.length === 3) hex = hex.split("").map(c => c + c).join("");
+            if (hex.length !== 6) hex = "999999";
+            return `${alpha}${hex.substring(4, 6)}${hex.substring(2, 4)}${hex.substring(0, 2)}`.toLowerCase();
+        }
+
+        function escapeXML(str) { return String(str ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;"); }
+        function sanitizeStyleId(prefix, name) { return `${prefix}_${String(name ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w]/g, "_") || "grupo"}`; }
+
+        function kmlStyleBlock(styleId, hexColor) {
+            return `<Style id="${styleId}"><IconStyle><color>${hexToKmlColor(hexColor)}</color><scale>1.1</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/shaded_dot.png</href></Icon><colorMode>normal</colorMode></IconStyle><LabelStyle><scale>0</scale></LabelStyle></Style>`;
+        }
+
+        function kmlExtendedData(r) {
+            const campos = [["Codigo", r["CÓDIGO"]], ["Nome da Estacao", r["NOME ESTAÇÃO"]], ["UF", r["UF"]], ["Regiao", r["REGIÃO"]], ["Situacao da Estacao", r["SITUAÇÃO ESTAÇÃO"]], ["Status Operacional", r["STATUS OPERACIONAL"]], ["Status Telemetria", r["STATUS TELEMETRIA"]], ["Tipo de Transmissao", r["TIPO TRANSMISSÃO"]], ["Ultima Transmissao", r["ÚLTIMA TRANSMISSÃO"]], ["Dias sem Transmissao", r["DIAS SEM TRANSMISSÃO"]]];
+            return campos.map(([n, v]) => `     <Data name="${escapeXML(n)}"><value>${escapeXML(String(v ?? ""))}</value></Data>`).join("\n");
+        }
+
+        function kmlPlacemark(r, styleId) {
+            const coords = coordenadasValidas(r); if (!coords) return "";
+            const balloonHtml = `<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse; width:100%; font-family:sans-serif; font-size:12px;"><tr><th colspan="2" style="background:#e0e0e0; text-align:center;">Dados da Estação</th></tr><tr><td><b>Código</b></td><td>${r["CÓDIGO"]}</td></tr><tr><td><b>Nome</b></td><td>${r["NOME ESTAÇÃO"]}</td></tr><tr><td><b>UF / Região</b></td><td>${r["UF"]} - ${r["REGIÃO"]}</td></tr><tr><td><b>Situação</b></td><td>${r["SITUAÇÃO ESTAÇÃO"]}</td></tr><tr><td><b>Operacional</b></td><td>${r["STATUS OPERACIONAL"]}</td></tr><tr><td><b>Telemetria</b></td><td>${r["STATUS TELEMETRIA"]}</td></tr><tr><td><b>Transmissão</b></td><td>${r["TIPO TRANSMISSÃO"]}</td></tr><tr><td><b>Última Trans.</b></td><td>${r["ÚLTIMA TRANSMISSÃO"]}</td></tr><tr><td><b>Atraso (Dias)</b></td><td>${r["DIAS SEM TRANSMISSÃO"] !== null ? r["DIAS SEM TRANSMISSÃO"] : '-'}</td></tr></table><div style="font-size:10px; color:#666; margin-top:5px; font-style:italic;">* Janela de transmissão considerada: até os primeiros 25 min de cada hora cheia.</div>`;
+            return `<Placemark><name>${escapeXML(r["CÓDIGO"] + " - " + r["NOME ESTAÇÃO"])}</name><styleUrl>#${styleId}</styleUrl><ExtendedData>${kmlExtendedData(r)}</ExtendedData><description><![CDATA[${balloonHtml}]]></description><Point><coordinates>${coords.lon},${coords.lat},0</coordinates></Point></Placemark>`;
+        }
+
+        function baixarKML() {
+            const dados = DF_FILTRADO.length ? DF_FILTRADO : DF;
+            const porStatusOp = document.getElementById("kmlPorStatusOp").checked, porStatusTel = document.getElementById("kmlPorStatusTel").checked, porRegiao = document.getElementById("kmlPorRegiao").checked, porTipoTrans = document.getElementById("kmlPorTipoTrans").checked, porUF = document.getElementById("kmlPorUF").checked;
+            const raiz = { nome: "Monitoramento INMET", pastas: [] };
+            if (porStatusOp) {
+                const grupos = {}; dados.forEach(r => { const k = statusPuro(r["STATUS OPERACIONAL"]); (grupos[k] = grupos[k] || []).push(r); });
+                for (const [k, arr] of Object.entries(grupos)) raiz.pastas.push({ nome: k, cor: CORES[k] || "#999", items: arr, pastas: [] });
+            } else { raiz.pastas.push({ nome: "Todas", cor: "#2f81f7", items: dados, pastas: [] }); }
+
+            function aplicarSubAgrupamento(pasta) {
+                if (porStatusTel) { const grupos = {}; pasta.items.forEach(r => { const k = r["STATUS TELEMETRIA"]; (grupos[k] = grupos[k] || []).push(r); }); pasta.pastas = []; for (const [k, arr] of Object.entries(grupos)) pasta.pastas.push({ nome: k, cor: CORES_TELEMETRIA[k] || "#808080", items: arr, pastas: [] }); pasta.items = []; }
+                if (porRegiao) { if (pasta.pastas.length === 0) { const grupos = {}; pasta.items.forEach(r => { const k = r["REGIÃO"]; (grupos[k] = grupos[k] || []).push(r); }); for (const [k, arr] of Object.entries(grupos)) pasta.pastas.push({ nome: k, cor: "#2f81f7", items: arr, pastas: [] }); pasta.items = []; } else { pasta.pastas.forEach(sub => { const grupos = {}; sub.items.forEach(r => { const k = r["REGIÃO"]; (grupos[k] = grupos[k] || []).push(r); }); sub.pastas = []; for (const [k, arr] of Object.entries(grupos)) sub.pastas.push({ nome: k, cor: "#2f81f7", items: arr, pastas: [] }); sub.items = []; }); } }
+                if (porTipoTrans) { function aplicarTipo(p) { if (p.pastas.length === 0) { const grupos = {}; p.items.forEach(r => { const k = r["TIPO TRANSMISSÃO"]; (grupos[k] = grupos[k] || []).push(r); }); for (const [k, arr] of Object.entries(grupos)) p.pastas.push({ nome: k, cor: "#2f81f7", items: arr, pastas: [] }); p.items = []; } else { p.pastas.forEach(aplicarTipo); } } pasta.pastas.forEach(aplicarTipo); }
+                if (porUF) { function aplicarUF(p) { if (p.pastas.length === 0) { const grupos = {}; p.items.forEach(r => { const k = r["UF"]; (grupos[k] = grupos[k] || []).push(r); }); for (const [k, arr] of Object.entries(grupos)) p.pastas.push({ nome: k, cor: "#2f81f7", items: arr, pastas: [] }); p.items = []; } else { p.pastas.forEach(aplicarUF); } } pasta.pastas.forEach(aplicarUF); }
+            }
+            raiz.pastas.forEach(aplicarSubAgrupamento);
+
+            let stylesKML = ""; const stylesMap = {};
+            function coletarEstilos(pasta) {
+                const styleId = sanitizeStyleId("grp", pasta.nome);
+                if (!stylesMap[styleId]) { stylesMap[styleId] = pasta.cor; stylesKML += kmlStyleBlock(styleId, pasta.cor); }
+                pasta.pastas.forEach(coletarEstilos);
+            }
+            raiz.pastas.forEach(coletarEstilos);
+
+            function gerarFolders(pasta) {
+                const styleId = sanitizeStyleId("grp", pasta.nome); let inner = "";
+                pasta.pastas.forEach(sub => { inner += gerarFolders(sub); });
+                pasta.items.forEach(r => { inner += kmlPlacemark(r, styleId); });
+                return `<Folder><name>${escapeXML(pasta.nome)}</name>${inner}</Folder>`;
+            }
+            let foldersKML = ""; raiz.pastas.forEach(p => { foldersKML += gerarFolders(p); });
+
+            const kml = `<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Monitoramento INMET</name>${stylesKML}${foldersKML}</Document></kml>`;
+            const blob = new Blob([kml], { type: "application/vnd.google-earth.kml+xml" }), url = URL.createObjectURL(blob);
+            const link = document.createElement("a"); link.href = url; link.download = `MONITORAMENTO_INMET_${new Date().toISOString().slice(0,10).replace(/-/g,"")}.kml`; link.click(); URL.revokeObjectURL(url);
+        }
+
+        async function carregarImagensSatelite() {
+            const grid = document.getElementById("imagemSateliteGrid");
+            try {
+                const resp = await fetch(`${API_TEMPO}/imagens/satelite`);
+                if (!resp.ok) throw new Error("Falha");
+                const data = await resp.json();
+                const imagens = Array.isArray(data) ? data : (data.data || []);
+                if (imagens.length === 0) { grid.innerHTML = "<span class='caption'>Nenhuma imagem disponível no momento.</span>"; return; }
+                grid.innerHTML = imagens.slice(0, 6).map(img => {
+                    const url = img.url || img.path || "", desc = img.descricao || img.nome || "", dataHora = img.data || "";
+                    return `<div class="imagem-bloco"><img src="${url}" alt="${desc}" loading="lazy" onerror="this.parentElement.style.display='none'"><div class="img-caption">${desc}<br>${dataHora}</div></div>`;
+                }).join("");
+            } catch (e) { grid.innerHTML = "<span class='caption'>Não foi possível carregar as imagens de satélite.</span>"; }
+        }
+
+        function agendarAutoRefresh() {
+            const agora = new Date(); let proxima = new Date(agora); proxima.setMinutes(26, 0, 0);
+            if (agora.getMinutes() >= 26) proxima.setHours(proxima.getHours() + 1);
+            document.getElementById("nextUpdate").textContent = `Próxima atualização automática: ${proxima.toLocaleString("pt-BR")}`;
+            setTimeout(() => location.reload(), proxima.getTime() - agora.getTime());
+        }
+
+        async function atualizarTudo(forcar) {
+            if (forcar) {
+                localStorage.removeItem("estacoes_cache");
+                Object.keys(localStorage).forEach(k => { if (k.startsWith("vitral_")) localStorage.removeItem(k); });
+            }
+            DF = await processarTodasEstacoes();
+            DF_FILTRADO = DF;
+            document.getElementById("lastUpdate").textContent = `Última atualização: ${new Date().toLocaleString("pt-BR")} UTC`;
+            atualizarKPIs(DF);
+            montarFiltros(DF);
+            renderizarMapas(DF);
+            aplicarOrdenacao();
+            montarControlesComparacao(DF);
+            renderizarMapaComparacao(DF);
+            carregarImagensSatelite();
+            agendarAutoRefresh();
+        }
+
+        async function iniciar() {
+            initMapas();
+            agendarAutoRefresh();
+            DF = await processarTodasEstacoes();
+            DF_FILTRADO = DF;
+
+            document.getElementById("lastUpdate").textContent = `Última atualização: ${new Date().toLocaleString("pt-BR")} UTC`;
+            atualizarKPIs(DF);
+            montarFiltros(DF);
+            renderizarMapas(DF);
+            aplicarOrdenacao();
+            montarControlesComparacao(DF);
+            renderizarMapaComparacao(DF);
+            carregarImagensSatelite();
+        }
+
+        iniciar();
+    </script>
+</body>
+</html>
