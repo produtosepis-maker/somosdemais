@@ -57,7 +57,7 @@
 
         .kpis {
             display: grid;
-            grid-template-columns: repeat(7, 1fr);
+            grid-template-columns: repeat(8, 1fr);
             gap: 10px;
             padding: 16px 24px;
         }
@@ -70,6 +70,22 @@
         }
         .kpi-card .label { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; }
         .kpi-card .value { font-size: 1.6rem; font-weight: 700; margin-top: 4px; }
+        .kpi-card .kpi-percent {
+            margin-top: 3px;
+            font-size: 10px;
+            line-height: 1.2;
+            color: #8b949e;
+            letter-spacing: .1px;
+        }
+        .kpi-card[data-status="TOTAL"] { border-top: 2px solid #6e7681; }
+        .kpi-card[data-status="SUSPEITAS"] { border-top: 2px solid #ff4d6d; }
+        .kpi-summary { margin: -8px 24px 8px; padding: 5px 0; color: var(--muted); font-size: 0.76rem; text-align: right; }
+        .kpi-card[data-status="OPERANTE"] { border-top: 2px solid #3fb950; }
+        .kpi-card[data-status="ATENÇÃO"] { border-top: 2px solid #d29922; }
+        .kpi-card[data-status="ISOLADO"] { border-top: 2px solid #f0883e; }
+        .kpi-card[data-status="PANE"] { border-top: 2px solid #f85149; }
+        .kpi-card[data-status="PAROU"] { border-top: 2px solid #8957e5; }
+        .kpi-card[data-status="RETORNOU"] { border-top: 2px solid #388bfd; }
 
         .filters {
             padding: 0 24px 16px;
@@ -169,6 +185,26 @@
         .status-PANE { background: #F4CCCC; color: #990000; }
         .status-PAROU { background: #D9B3FF; color: #4B0082; }
         .status-RETORNOU { background: #77DCF2; color: #003344; }
+        /* Monitoramento Geral — QC técnico por variável */
+        #tabelaGeral .qc-cell {
+            position: relative;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+        #tabelaGeral .qc-cell.qc-suspeito { box-shadow: inset 0 0 0 1px rgba(255,70,70,.55); }
+        #tabelaGeral .qc-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; }
+        #tabelaGeral .qc-dot.ok { background:#2ca02c; }
+        #tabelaGeral .qc-dot.bad { background:#ff3030; }
+        #tabelaGeral .qc-star { color:#ffb347; font-weight:800; margin-left:3px; }
+        #tabelaGeral .sensor-status { display:inline-block; margin-left:6px; font-size:.68rem; opacity:.85; }
+        #tabelaGeral td.station-id { font-weight:600; }
+        #tabelaGeral td.station-suspect { border-left:3px solid #ff3030; }
+        .monitoramento-legenda { display:flex; gap:16px; flex-wrap:wrap; align-items:center; margin:8px 0 10px; font-size:.76rem; color:var(--muted); }
+        .monitoramento-legenda span { display:inline-flex; align-items:center; gap:5px; }
+        .qc-summary { margin-left:auto; font-size:.76rem; color:var(--muted); }
+        .qc-summary strong { color:var(--text); }
+        .qc-tooltip { cursor:help; }
+
 
         .controls-row {
             display: flex;
@@ -331,14 +367,48 @@
     <div class="progress-text" id="progressText">Iniciando...</div>
 
     <div class="kpis">
-        <div class="kpi-card"><div class="label">Total</div><div class="value" id="kpiTotal">0</div></div>
-        <div class="kpi-card"><div class="label">🟢 Operante</div><div class="value" id="kpiOperante">0</div></div>
-        <div class="kpi-card"><div class="label">🟡 Atenção</div><div class="value" id="kpiAtencao">0</div></div>
-        <div class="kpi-card"><div class="label">🟠 Isolado</div><div class="value" id="kpiIsolado">0</div></div>
-        <div class="kpi-card"><div class="label">🔴 Pane</div><div class="value" id="kpiPane">0</div></div>
-        <div class="kpi-card"><div class="label">🟣 Parou</div><div class="value" id="kpiParou">0</div></div>
-        <div class="kpi-card"><div class="label">🔵 Retornou</div><div class="value" id="kpiRetornou">0</div></div>
+        <div class="kpi-card" data-status="TOTAL">
+            <div class="label">TOTAL</div>
+            <div class="value" id="kpiTotal">0</div>
+            <div class="kpi-percent" id="kpiPercentTotal">100,0% do total</div>
+        </div>
+        <div class="kpi-card" data-status="OPERANTE">
+            <div class="label">🟢 OPERANTE</div>
+            <div class="value" id="kpiOperante">0</div>
+            <div class="kpi-percent" id="kpiPercentOperante">0,0% do total</div>
+        </div>
+        <div class="kpi-card" data-status="ATENÇÃO">
+            <div class="label">🟡 ATENÇÃO</div>
+            <div class="value" id="kpiAtencao">0</div>
+            <div class="kpi-percent" id="kpiPercentAtencao">0,0% do total</div>
+        </div>
+        <div class="kpi-card" data-status="ISOLADO">
+            <div class="label">🟠 ISOLADO</div>
+            <div class="value" id="kpiIsolado">0</div>
+            <div class="kpi-percent" id="kpiPercentIsolado">0,0% do total</div>
+        </div>
+        <div class="kpi-card" data-status="PANE">
+            <div class="label">🔴 PANE</div>
+            <div class="value" id="kpiPane">0</div>
+            <div class="kpi-percent" id="kpiPercentPane">0,0% do total</div>
+        </div>
+        <div class="kpi-card" data-status="PAROU">
+            <div class="label">🟣 PAROU</div>
+            <div class="value" id="kpiParou">0</div>
+            <div class="kpi-percent" id="kpiPercentParou">0,0% do total</div>
+        </div>
+        <div class="kpi-card" data-status="RETORNOU">
+            <div class="label">🔵 RETORNOU</div>
+            <div class="value" id="kpiRetornou">0</div>
+            <div class="kpi-percent" id="kpiPercentRetornou">0,0% do total</div>
+        </div>
+        <div class="kpi-card" data-status="SUSPEITAS">
+            <div class="label">🔎 ESTAÇÕES SUSPEITAS</div>
+            <div class="value" id="kpiSuspeitas">0</div>
+            <div class="kpi-percent" id="kpiPercentSuspeitas">0,0% do total</div>
+        </div>
     </div>
+    <div class="kpi-summary" id="kpiSummary">Valores/ocorrências suspeitas identificadas na última análise: 0</div>
 
     <div class="filters">
         <div class="filter-group">
@@ -391,7 +461,17 @@
     </div>
 
     <div class="section">
-        <h2>📋 Monitoramento Geral <span class="caption">(clique no cabeçalho para ordenar)</span></h2>
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+            <h2 style="margin:0;">📋 Monitoramento Geral <span class="caption">(clique no cabeçalho para ordenar)</span></h2>
+            <button class="primary" onclick="baixarTabelaMonitoramento()">⬇️ Baixar tabela</button>
+        </div>
+        <div class="monitoramento-legenda">
+            <span><i class="qc-dot ok"></i> dado observado consistente</span>
+            <span><i class="qc-dot bad"></i> evidência de suspeição técnica</span>
+            <span><b>*</b> isolamento no último horário de leitura</span>
+            <span>fundo da célula = status operacional do sensor</span>
+            <span class="qc-summary" id="qcSummary">QC: aguardando processamento...</span>
+        </div>
         <div class="table-container">
             <table id="tabelaGeral">
                 <thead><tr id="tabelaHead"></tr></thead>
@@ -526,15 +606,20 @@
         const CACHE_TTL_ESTACOES = 3600 * 1000;
         const CACHE_TTL_VITRAL = 900 * 1000;
 
+        // Lista de exclusão exatamente igual à versão Python dashboard_qc_inmet_v13.py.
         const ESTACOES_EXCLUIDAS = new Set([
-            "A004", "A006", "A007", "A008", "A059", "A060", "A127", "A208", "A243", "A302", "A338", "A362",
-            "A378", "A379", "A403", "A411", "A418", "A420", "A435", "A449", "A454", "A459", "A460", "A461",
-            "A462", "A463", "A464", "A465", "A466", "A467", "A468", "A469", "A470", "A471", "A501", "A503",
-            "A504", "A573", "A574", "A575", "A576", "A577", "A578", "A579", "A580", "A581", "A582", "A605",
-            "A615", "A623", "A635", "A650", "A651", "A653", "A654", "A655", "A656", "A729", "A745", "A757",
-            "A767", "A773", "A774", "A775", "A776", "A777", "A778", "A779", "A780", "A781", "A791", "A792",
-            "A793", "A794", "A795", "A796", "A797", "A799", "A808", "A847", "A913", "A915", "A918", "A921",
-            "A998", "A999", "B701", "B702", "B703", "B704", "B705", "B706", "B707", "B807", "B879", "B882", "B884"
+            "A004", "A006", "A007", "A008",
+            "A059", "A060", "A127", "A208",
+            "A243", "A302", "A338", "A362",
+            "A378", "A379", "A403", "A411",
+            "A418", "A420", "A435", "A449",
+            "A454", "A459", "A460", "A461",
+            "A462", "A463", "A464", "A465",
+            "A466", "A467", "A468", "A469",
+            "A470", "A471", "A501", "A503",
+            "A504", "A573", "A574", "A575",
+            "A576", "A577", "A578", "A579",
+            "A580", "A581", "A582", "A605"
         ]);
 
         const REGIOES = {
@@ -630,22 +715,36 @@
             return results;
         }
 
+        // =====================================================================
+        // CADASTRO NACIONAL — MESMA FONTE E MESMA REGRA DO PYTHON
+        // Cadastro nacional usado no Monitoramento Geral.
+        // Além da lista oficial de exclusões, também são excluídos códigos
+        // cujo primeiro caractere seja C, F, I ou S.
+        // =====================================================================
         async function obterEstacoes() {
-            const cached = cacheGet("estacoes_cache", CACHE_TTL_ESTACOES);
-            if (cached) return cached;
-            const [autoR, convR] = await Promise.all([
-                fetch(`${API_TEMPO}/estacoes/T`).then(r => r.json()),
-                fetch(`${API_TEMPO}/estacoes/M`).then(r => r.json())
-            ]);
-            let all = [...autoR, ...convR];
-            all = all.map(r => {
+            const CACHE_ESTACOES_PY = "estacoes_cache_python_v13_sem_C_F_I_S";
+            const cached = cacheGet(CACHE_ESTACOES_PY, CACHE_TTL_ESTACOES);
+            if (cached) return cached.filter(r => !/^[CFIS]/i.test(String(r?.cd_estacao || "").trim()));
+
+            const resposta = await fetch(`${API_TEMPO}/estacoes/T`);
+            if (!resposta.ok) throw new Error(`Falha no cadastro /estacoes/T: HTTP ${resposta.status}`);
+            let dados = await resposta.json();
+            if (!Array.isArray(dados)) dados = Array.isArray(dados?.dados) ? dados.dados : [dados];
+
+            const porCodigo = new Map();
+            for (const r of dados) {
                 const norm = {};
-                for (const k in r) norm[k.toLowerCase()] = r[k];
-                norm.cd_estacao = String(norm.cd_estacao || "").toUpperCase();
-                return norm;
-            });
-            all = all.filter(r => !ESTACOES_EXCLUIDAS.has(r.cd_estacao) && !/^[CFIS]/.test(r.cd_estacao));
-            cacheSet("estacoes_cache", all);
+                for (const k in (r || {})) norm[k.toLowerCase()] = r[k];
+                norm.cd_estacao = String(norm.cd_estacao || "").trim().toUpperCase();
+                if (!norm.cd_estacao || ESTACOES_EXCLUIDAS.has(norm.cd_estacao)) continue;
+                // Regra adicional solicitada: excluir códigos iniciados por C, F, I ou S.
+                if (/^[CFIS]/.test(norm.cd_estacao)) continue;
+                // Python: drop_duplicates(subset=["CÓDIGO"], keep="first")
+                if (!porCodigo.has(norm.cd_estacao)) porCodigo.set(norm.cd_estacao, norm);
+            }
+
+            const all = Array.from(porCodigo.values());
+            cacheSet(CACHE_ESTACOES_PY, all);
             return all;
         }
 
@@ -862,6 +961,8 @@
                 linha["TIPO TRANSMISSÃO"] = tipoTransmissao(linha["CÓDIGO"]);
             }
             df.sort((a, b) => a["CÓDIGO"].localeCompare(b["CÓDIGO"]));
+            // Calcula a camada de QC exclusivamente para o Monitoramento Geral.
+            enriquecerMonitoramentoGeral(df);
             fill.style.width = "100%";
             txt.textContent = `Processamento concluído: ${df.length} estações.`;
             setTimeout(() => { fill.style.width = "0%"; txt.textContent = ""; }, 2500);
@@ -881,15 +982,162 @@
             return "";
         }
 
+        // =====================================================================
+        // KPIs DO MONITORAMENTO GERAL — mesma classificação do Python
+        // =====================================================================
+        // O dashboard Python determina o STATUS OPERACIONAL a partir dos 10
+        // campos operacionais: TEM_INS, UMD_INS, PTO_INS, PRE_INS, VEN_VEL,
+        // VEN_RAJ, VEN_DIR, RAD_GLO, CHUVA e TEN_BAT.
+        // Para o resumo, PANE é contado separadamente pela SITUAÇÃO DA ESTAÇÃO
+        // do cadastro oficial; PAROU é contado pelo STATUS OPERACIONAL do QC.
+        // Depois são aplicadas as regras herdadas: OPERANTE + >=3 dias sem
+        // transmissão = PAROU; PANE + <=2 dias + >=48 registros = RETORNOU.
+        // Esse resultado já está em r._MG_QC.status.
+        // =====================================================================
+        function mgStatusLinha(r) {
+            return (r && r._MG_QC && r._MG_QC.status)
+                ? r._MG_QC.status
+                : String(r?.["STATUS OPERACIONAL"] || "OPERANTE").trim();
+        }
+
         function atualizarKPIs(df) {
-            const count = (statusStr) => df.filter(r => r["STATUS OPERACIONAL"] === statusStr).length;
-            document.getElementById("kpiTotal").textContent = df.length;
-            document.getElementById("kpiOperante").textContent = count("OPERANTE");
-            document.getElementById("kpiAtencao").textContent = count("ATENÇÃO");
-            document.getElementById("kpiIsolado").textContent = count("ISOLADO");
-            document.getElementById("kpiPane").textContent = count("PANE");
-            document.getElementById("kpiParou").textContent = count("PAROU");
-            document.getElementById("kpiRetornou").textContent = count("RETORNOU");
+            // =================================================================
+            // RESUMO QUANTITATIVO — CONVERSÃO DIRETA DA LÓGICA DO PYTHON
+            // =================================================================
+            // No dashboard Python, os KPIs são calculados sobre o DF nacional
+            // antes da aplicação dos filtros. Portanto, no HTML esta função
+            // recebe sempre DF (universo nacional), e não DF_FILTRADO.
+            //
+            // Python:
+            //   total = len(df)
+            //   PANE = situação da estação (cadastro oficial)
+            //   PAROU/RETORNOU e demais estados = STATUS OPERACIONAL
+            //   estações_suspeitas = df["_TOTAL_SUSPEITAS"] > 0
+            //   valores_suspeitos = sum(df["_TOTAL_SUSPEITAS"])
+            //
+            // Aqui, _MG_QC é a representação JavaScript dessa camada de QC.
+            const base = Array.isArray(df) ? df : [];
+            const total = base.length;
+
+            const statusDaLinha = (r) => String(
+                r?._MG_QC?.status ?? r?.["STATUS OPERACIONAL"] ?? ""
+            ).trim().toUpperCase();
+
+            const contemStatus = (r, status) => statusDaLinha(r).includes(status);
+
+            const operante = base.filter(r => contemStatus(r, "OPERANTE")).length;
+            const atencao = base.filter(r => contemStatus(r, "ATENÇÃO")).length;
+            const isolado = base.filter(r => contemStatus(r, "ISOLADO")).length;
+
+            // PANE no resumo deve representar a SITUAÇÃO DA ESTAÇÃO
+            // informada pelo cadastro oficial da API Tempo, e não o status
+            // operacional derivado do QC.
+            // Python: SITUAÇÃO DA ESTAÇÃO = PANE.
+            const pane = base.filter(r =>
+                String(r?.["SITUAÇÃO ESTAÇÃO"] ?? r?.["SITUAÇÃO DA ESTAÇÃO"] ?? "")
+                    .trim().toUpperCase().includes("PANE")
+            ).length;
+
+            // PAROU: contar SOMENTE estações cuja situação oficial do cadastro
+            // seja exatamente OPERANTE E cujo STATUS OPERACIONAL calculado pelo
+            // QC seja exatamente PAROU. Não usar apenas o status do QC.
+            const parou = base.filter(r => {
+                const situacao = String(
+                    r?.["SITUAÇÃO ESTAÇÃO"] ?? r?.["SITUAÇÃO DA ESTAÇÃO"] ?? ""
+                ).trim().toUpperCase();
+                const status = String(
+                    r?._MG_QC?.status ?? r?.["STATUS OPERACIONAL"] ?? ""
+                ).trim().toUpperCase();
+                return situacao === "OPERANTE" && status === "PAROU";
+            }).length;
+            const retornou = base.filter(r => contemStatus(r, "RETORNOU")).length;
+
+            // Equivalente a: (df["_TOTAL_SUSPEITAS"] > 0).sum()
+            const estacoesSuspeitas = base.filter(r =>
+                Number(r?._MG_QC?.total ?? 0) > 0
+            ).length;
+
+            // Equivalente a: int(df["_TOTAL_SUSPEITAS"].sum())
+            const valoresSuspeitos = base.reduce((soma, r) => {
+                const n = Number(r?._MG_QC?.total ?? 0);
+                return soma + (Number.isFinite(n) ? n : 0);
+            }, 0);
+
+            const valores = { OPERANTE: operante, "ATENÇÃO": atencao, ISOLADO: isolado, PANE: pane, PAROU: parou, RETORNOU: retornou };
+            const mapa = {
+                kpiOperante: "OPERANTE",
+                kpiAtencao: "ATENÇÃO",
+                kpiIsolado: "ISOLADO",
+                kpiPane: "PANE",
+                kpiParou: "PAROU",
+                kpiRetornou: "RETORNOU"
+            };
+
+            // Percentuais sempre calculados sobre o universo nacional,
+            // exatamente como os quantitativos dos KPIs.
+            const percentual = (n) => total > 0 ? (n / total) * 100 : 0;
+            const formatarPercentual = (n) => `${percentual(n).toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% do total`;
+
+            document.getElementById("kpiTotal").textContent = total.toLocaleString("pt-BR");
+            const percentTotal = document.getElementById("kpiPercentTotal");
+            if (percentTotal) percentTotal.textContent = "100,0% do total";
+
+            for (const [id, status] of Object.entries(mapa)) {
+                const value = document.getElementById(id);
+                if (!value) continue;
+                const n = valores[status];
+                value.textContent = n.toLocaleString("pt-BR");
+
+                const percentEl = document.getElementById(
+                    id.replace("kpi", "kpiPercent")
+                );
+                if (percentEl) percentEl.textContent = formatarPercentual(n);
+
+                const card = value.closest(".kpi-card");
+                if (card) {
+                    card.dataset.status = status;
+                    const origem = status === "PANE"
+                        ? "SITUAÇÃO DA ESTAÇÃO"
+                        : status === "PAROU"
+                            ? "STATUS OPERACIONAL"
+                            : "STATUS OPERACIONAL";
+                    card.title = `${status}: ${n} de ${total} estações (${formatarPercentual(n)}) • Fonte: ${origem}`;
+                }
+            }
+
+            const suspeitasEl = document.getElementById("kpiSuspeitas");
+            if (suspeitasEl) {
+                suspeitasEl.textContent = estacoesSuspeitas.toLocaleString("pt-BR");
+                const percentSuspeitas = document.getElementById("kpiPercentSuspeitas");
+                if (percentSuspeitas) percentSuspeitas.textContent = formatarPercentual(estacoesSuspeitas);
+
+                const card = suspeitasEl.closest(".kpi-card");
+                if (card) {
+                    card.dataset.status = "SUSPEITAS";
+                    card.title = `${estacoesSuspeitas} estação(ões) com pelo menos uma suspeita técnica (${formatarPercentual(estacoesSuspeitas)})`;
+                }
+            }
+
+            const totalCard = document.getElementById("kpiTotal")?.closest(".kpi-card");
+            if (totalCard) totalCard.title = `${total} estações consideradas no resumo nacional`;
+
+            const summary = document.getElementById("kpiSummary");
+            if (summary) {
+                summary.textContent = `Valores/ocorrências suspeitas identificadas na última análise: ${valoresSuspeitos.toLocaleString("pt-BR")}`;
+            }
+
+            // Controle de consistência: os seis status devem cobrir o universo.
+            const soma = Object.values(valores).reduce((a, b) => a + b, 0);
+            const kpiContainer = document.querySelector(".kpis");
+            if (kpiContainer) kpiContainer.dataset.cobertura = (soma === total ? "ok" : "divergente");
+
+            window._MG_KPI_STATUS = {
+                ...valores,
+                TOTAL: total,
+                ESTACOES_SUSPEITAS: estacoesSuspeitas,
+                VALORES_SUSPEITOS: valoresSuspeitos,
+                SOMA_STATUS: soma
+            };
         }
 
         function montarFiltros(df) {
@@ -923,28 +1171,93 @@
         function regioesSelecionadas() { return Array.from(document.getElementById("regiaoFiltro").selectedOptions).map(o => o.value); }
         function aplicarFiltros() {
             const regs = regioesSelecionadas();
-            DF_FILTRADO = DF.filter(r => regs.includes(r["REGIÃO"]) && statusAtivos.has(statusPuro(r["STATUS OPERACIONAL"])));
-            atualizarKPIs(DF_FILTRADO);
+            DF_FILTRADO = DF.filter(r => regs.includes(r["REGIÃO"]) && statusAtivos.has(mgStatusLinha(r)));
+            // Os KPIs reproduzem o resumo nacional do Python e não mudam com os filtros.
+            atualizarKPIs(DF);
             renderizarMapas(DF_FILTRADO);
             aplicarOrdenacao();
         }
 
+        // =============================================================
+        // LIMITES ESTADUAIS — IBGE
+        // =============================================================
+        let limitesEstaduais = null;
+        let limitesEstaduaisCarregados = false;
+
+        const URL_LIMITES_ESTADOS =
+            "https://servicodados.ibge.gov.br/api/v3/malhas/paises/BR?formato=application/vnd.geo+json&qualidade=minima&intrarregiao=estado";
+
+        const URL_LIMITES_ESTADOS_FALLBACK =
+            "https://raw.githubusercontent.com/codeforamerica/click_that_hood/master/public/data/brazil-states.geojson";
+
+        function estiloLimitesEstaduais(feature) {
+            return {
+                color: "#d7dde8",
+                weight: 1.4,
+                opacity: 0.95,
+                fill: false,
+                fillOpacity: 0,
+                interactive: false
+            };
+        }
+
+        function adicionarLimitesEstaduais(map) {
+            if (!limitesEstaduais || !map) return;
+            L.geoJSON(limitesEstaduais, {
+                style: estiloLimitesEstaduais,
+                interactive: false
+            }).addTo(map);
+        }
+
+        async function carregarLimitesEstaduais() {
+            if (limitesEstaduaisCarregados) return;
+
+            const fontes = [URL_LIMITES_ESTADOS, URL_LIMITES_ESTADOS_FALLBACK];
+
+            for (const url of fontes) {
+                try {
+                    const resposta = await fetch(url, { cache: "force-cache" });
+                    if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
+                    const geojson = await resposta.json();
+
+                    // A API do IBGE pode devolver uma FeatureCollection diretamente.
+                    // O fallback do GitHub também utiliza o padrão GeoJSON.
+                    if (!geojson || !geojson.features) throw new Error("GeoJSON inválido");
+
+                    limitesEstaduais = geojson;
+                    limitesEstaduaisCarregados = true;
+
+                    adicionarLimitesEstaduais(mapOp);
+                    adicionarLimitesEstaduais(mapTel);
+                    adicionarLimitesEstaduais(mapComp);
+                    return;
+                } catch (erro) {
+                    console.warn("Não foi possível carregar limites estaduais:", url, erro);
+                }
+            }
+
+            console.warn("Limites estaduais não puderam ser carregados. Os mapas continuarão funcionando normalmente.");
+        }
+
         function initMapas() {
             mapOp = L.map("mapOperacional", { preferCanvas: true }).setView([-14.5, -52], 4);
-            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(mapOp);
+            L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", { maxZoom: 18, attribution: "&copy; Esri, HERE, Garmin, (c) OpenStreetMap contributors, and the GIS user community" }).addTo(mapOp);
             groupOp = L.layerGroup().addTo(mapOp);
 
             mapTel = L.map("mapTelemetria", { preferCanvas: true }).setView([-14.5, -52], 4);
-            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(mapTel);
+            L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", { maxZoom: 18, attribution: "&copy; Esri, HERE, Garmin, (c) OpenStreetMap contributors, and the GIS user community" }).addTo(mapTel);
             groupTel = L.layerGroup().addTo(mapTel);
 
             mapComp = L.map("mapComparacao", { preferCanvas: true }).setView([-14.5, -52], 4);
-            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18 }).addTo(mapComp);
+            L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", { maxZoom: 18, attribution: "&copy; Esri, HERE, Garmin, (c) OpenStreetMap contributors, and the GIS user community" }).addTo(mapComp);
             groupComp = L.layerGroup().addTo(mapComp);
             groupCompSelected = L.layerGroup().addTo(mapComp);
 
             montarLegenda("legendOperacional", CORES);
             montarLegenda("legendTelemetria", CORES_TELEMETRIA);
+
+            // Carrega os limites em paralelo para não bloquear o carregamento das estações.
+            carregarLimitesEstaduais();
         }
 
         function montarLegenda(elId, mapCores) {
@@ -981,6 +1294,11 @@
 
         function renderizarMapas(df) {
             groupOp.clearLayers(); groupTel.clearLayers();
+            // Os limites estaduais ficam em uma camada independente dos marcadores,
+            // portanto filtros/atualizações não os removem.
+            if (limitesEstaduaisCarregados) {
+                // A camada já está sobre o mapa; não é necessário recriá-la.
+            }
             let validas = 0;
             df.forEach(r => {
                 const coords = coordenadasValidas(r);
@@ -1027,58 +1345,384 @@
             } else { mapComp.setView([-14.5, -52], 4); }
         }
 
+        // ================================================================
+        // MONITORAMENTO GERAL — CONTROLE DE QUALIDADE CONVERTIDO DO PYTHON
+        // ================================================================
+        // Esta camada alimenta SOMENTE a tabela "📋 Monitoramento Geral".
+        // Mapas, gráficos e demais seções continuam utilizando seus campos
+        // originais. As regras abaixo reproduzem a lógica do dashboard Python.
+
+        const MG_VARIAVEIS = [
+            "TEMP_INS", "TEMP_MAX", "TEMP_MIN",
+            "UR_INS", "UR_MAX", "UR_MIN",
+            "PTO_INS", "PTO_MAX", "PTO_MIN",
+            "PRESS_INS", "PRESS_MAX", "PRESS_MIN",
+            "DIR", "VEL", "RAJ", "RAD_GLO", "CHUVA", "TBATERIA"
+        ];
+
+        const MG_API_FIELDS = {
+            TEMP_INS:"TEM_INS", TEMP_MAX:"TEM_MAX", TEMP_MIN:"TEM_MIN",
+            UR_INS:"UMD_INS", UR_MAX:"UMD_MAX", UR_MIN:"UMD_MIN",
+            PTO_INS:"PTO_INS", PTO_MAX:"PTO_MAX", PTO_MIN:"PTO_MIN",
+            PRESS_INS:"PRE_INS", PRESS_MAX:"PRE_MAX", PRESS_MIN:"PRE_MIN",
+            DIR:"VEN_DIR", VEL:"VEN_VEL", RAJ:"VEN_RAJ",
+            RAD_GLO:"RAD_GLO", CHUVA:"CHUVA", TBATERIA:"TEN_BAT"
+        };
+
+        const MG_DISPLAY = [
+            "TEMP_INS", "TEMP_MAX", "TEMP_MIN",
+            "UR_INS", "UR_MAX", "UR_MIN",
+            "PTO_INS", "PTO_MAX", "PTO_MIN",
+            "PRESS_INS", "PRESS_MAX", "PRESS_MIN",
+            "DIR", "VEL", "RAJ", "RAD_GLO", "CHUVA", "TBATERIA"
+        ];
+
+        const MG_LABELS = {
+            TEMP_INS:"Temperatura instantânea", TEMP_MAX:"Temperatura máxima", TEMP_MIN:"Temperatura mínima",
+            UR_INS:"Umidade relativa instantânea", UR_MAX:"Umidade relativa máxima", UR_MIN:"Umidade relativa mínima",
+            PTO_INS:"Ponto de orvalho instantâneo", PTO_MAX:"Ponto de orvalho máximo", PTO_MIN:"Ponto de orvalho mínimo",
+            PRESS_INS:"Pressão instantânea", PRESS_MAX:"Pressão máxima", PRESS_MIN:"Pressão mínima",
+            DIR:"Direção do vento", VEL:"Velocidade do vento", RAJ:"Rajada de vento",
+            RAD_GLO:"Radiação global", CHUVA:"Precipitação", TBATERIA:"Tensão da bateria"
+        };
+
+        const MG_UNITS = {
+            TEMP_INS:"°C", TEMP_MAX:"°C", TEMP_MIN:"°C", UR_INS:"%", UR_MAX:"%", UR_MIN:"%",
+            PTO_INS:"°C", PTO_MAX:"°C", PTO_MIN:"°C", PRESS_INS:"hPa", PRESS_MAX:"hPa", PRESS_MIN:"hPa",
+            DIR:"°", VEL:"m/s", RAJ:"m/s", RAD_GLO:"W/m²", CHUVA:"mm", TBATERIA:"V"
+        };
+
+        const MG_LIMITES = {
+            TEMP_INS:[-60,60], TEMP_MAX:[-60,65], TEMP_MIN:[-70,60],
+            UR_INS:[0,100], UR_MAX:[0,100], UR_MIN:[0,100],
+            PTO_INS:[-80,60], PTO_MAX:[-80,65], PTO_MIN:[-90,60],
+            PRESS_INS:[850,1100], PRESS_MAX:[850,1100], PRESS_MIN:[850,1100],
+            DIR:[0,360], VEL:[0,80], RAJ:[0,100], RAD_GLO:[0,Infinity], CHUVA:[0,500], TBATERIA:[0,20]
+        };
+
+        const MG_SALTOS = {
+            TEMP_INS:8, UR_INS:45, PTO_INS:8, PRESS_INS:8,
+            VEL:35, RAJ:50, TBATERIA:4
+        };
+
+        const MG_VIZ_DISPERSAO = {
+            TEMP_INS:8, UR_INS:35, PTO_INS:8, PRESS_INS:8,
+            VEL:25, RAJ:40, TBATERIA:3, CHUVA:80
+        };
+        const MG_VIZ_LIMIAR = {
+            TEMP_INS:5, UR_INS:25, PTO_INS:5, PRESS_INS:5,
+            VEL:20, RAJ:30, TBATERIA:2, CHUVA:50
+        };
+        const MG_PERSISTENCIA_MIN = 4;
+        const MG_N_VIZINHAS = 3;
+        const MG_RAIO_MAX_KM = 300;
+
+        function mgNum(v) {
+            if (v === null || v === undefined) return null;
+            const t = String(v).trim().replace(/\*/g, "").replace(",", ".");
+            if (!t || ["-","nan","null","undefined"].includes(t.toLowerCase())) return null;
+            const n = Number(t); return Number.isFinite(n) ? n : null;
+        }
+
+        function mgHora4(h) { return String(h ?? "").replace(":", "").replace(".0", "").padStart(4,"0").slice(0,4); }
+        function mgDate(r) {
+            if (!r || !r.DT_MEDICAO || r.HR_MEDICAO === undefined || r.HR_MEDICAO === null) return null;
+            const hh = mgHora4(r.HR_MEDICAO).slice(0,2);
+            const dt = new Date(`${String(r.DT_MEDICAO).trim()}T${hh}:00:00Z`);
+            return Number.isNaN(dt.getTime()) ? null : dt;
+        }
+        function mgRegistrosOrdenados(r) {
+            return Array.isArray(r?._registros) ? [...r._registros].filter(x => mgDate(x)).sort((a,b) => mgDate(a)-mgDate(b)) : [];
+        }
+        function mgUltimoRegistro(r) {
+            const a = mgRegistrosOrdenados(r); return a.length ? a[a.length-1] : null;
+        }
+        function mgSerie(r, campo) {
+            return mgRegistrosOrdenados(r).map(x => ({dt:mgDate(x), value:mgNum(x[MG_API_FIELDS[campo]])})).filter(x => x.value !== null);
+        }
+        function mgUltimoValor(r, campo) {
+            const u = mgUltimoRegistro(r); return u ? mgNum(u[MG_API_FIELDS[campo]]) : null;
+        }
+        function mgIsoladoAtual(r, campo) {
+            const u = mgUltimoRegistro(r); if (!u) return false;
+            const v = u[MG_API_FIELDS[campo]]; return v !== null && v !== undefined && String(v).includes("*");
+        }
+        function mgDistancia(lat1,lon1,lat2,lon2) {
+            lat1=Number(lat1); lon1=Number(lon1); lat2=Number(lat2); lon2=Number(lon2);
+            if (![lat1,lon1,lat2,lon2].every(Number.isFinite)) return Infinity;
+            const R=6371.0088, dLat=(lat2-lat1)*Math.PI/180, dLon=(lon2-lon1)*Math.PI/180;
+            const x=Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+            return R*2*Math.asin(Math.min(1,Math.sqrt(x)));
+        }
+        function mgVizinhas(row, todos) {
+            const arr = todos.filter(x => x !== row).map(x => ({row:x, d:mgDistancia(row.LATITUDE,row.LONGITUDE,x.LATITUDE,x.LONGITUDE)})).filter(x => x.d <= MG_RAIO_MAX_KM).sort((a,b)=>a.d-b.d);
+            return arr.slice(0,MG_N_VIZINHAS);
+        }
+        function mgMediana(a) { if (!a.length) return null; const b=[...a].sort((x,y)=>x-y), m=Math.floor(b.length/2); return b.length%2?b[m]:(b[m-1]+b[m])/2; }
+        function mgPontoOrvalho(temp, ur) {
+            if (temp === null || ur === null || ur <= 0 || ur > 100) return null;
+            const a=17.625,b=243.04, gamma=Math.log(ur/100)+(a*temp)/(b+temp); return b*gamma/(a-gamma);
+        }
+        function mgCoerencia(v) {
+            const out=[];
+            if (v.TEMP_INS!==null && v.TEMP_MAX!==null && v.TEMP_INS > v.TEMP_MAX+0.5) out.push("TEMP_INS > TEMP_MAX");
+            if (v.TEMP_INS!==null && v.TEMP_MIN!==null && v.TEMP_INS < v.TEMP_MIN-0.5) out.push("TEMP_INS < TEMP_MIN");
+            if (v.UR_INS!==null && v.UR_MAX!==null && v.UR_INS > v.UR_MAX+0.5) out.push("UR_INS > UR_MAX");
+            if (v.UR_INS!==null && v.UR_MIN!==null && v.UR_INS < v.UR_MIN-0.5) out.push("UR_INS < UR_MIN");
+            if (v.PTO_INS!==null && v.PTO_MAX!==null && v.PTO_INS > v.PTO_MAX+0.5) out.push("PTO_INS > PTO_MAX");
+            if (v.PTO_INS!==null && v.PTO_MIN!==null && v.PTO_INS < v.PTO_MIN-0.5) out.push("PTO_INS < PTO_MIN");
+            if (v.VEL!==null && v.RAJ!==null && v.VEL > v.RAJ+0.5) out.push("VEL > RAJ");
+            if (v.PTO_INS!==null && v.TEMP_INS!==null && v.PTO_INS > v.TEMP_INS+0.5) out.push("PTO_INS > TEMP_INS");
+            const calc=mgPontoOrvalho(v.TEMP_INS,v.UR_INS);
+            if (v.PTO_INS!==null && calc!==null && Math.abs(v.PTO_INS-calc)>4) out.push("PTO observado diverge do PTO calculado");
+            return out;
+        }
+        function mgLacuna(r) {
+            const t=mgRegistrosOrdenados(r).map(mgDate).filter(Boolean);
+            for(let i=1;i<t.length;i++) if ((t[i]-t[i-1])/3600000 > 1.5) return true;
+            return false;
+        }
+        function mgDuplicidade(r) {
+            const seen=new Set(), dup=[];
+            for(const x of (Array.isArray(r?._registros)?r._registros:[])) { const d=mgDate(x); if(!d) continue; const k=d.getTime(); if(seen.has(k)) dup.push(k); seen.add(k); }
+            return dup.length>0;
+        }
+        function mgRadiacaoNoturna(r) {
+            let n=0;
+            for(const x of (Array.isArray(r?._registros)?r._registros:[])) {
+                const d=mgDate(x), v=mgNum(x.RAD_GLO); if(!d || v===null) continue;
+                const h=d.getUTCHours(); if((h>=22 || h<=8) && v>20) n++;
+            }
+            return n;
+        }
+        function mgStatusSensor(r,campo,situacao) {
+            const serie=mgSerie(r,campo);
+            if(!serie.length) return String(situacao||"").toUpperCase().includes("OPERANTE") ? "PAROU" : "PANE";
+            const ultimo=serie[serie.length-1].dt, horas=(Date.now()-ultimo.getTime())/3600000;
+            if(mgIsoladoAtual(r,campo)) return "ISOLADO";
+            if(horas>=72) return "PAROU";
+            if(horas>=2) return "ATENÇÃO";
+            return "OPERANTE";
+        }
+        // =====================================================================
+        // STATUS OPERACIONAL — PORTA DA LÓGICA PYTHON
+        // =====================================================================
+        // O Python avalia exatamente estes 10 campos para o status global.
+        const MG_PY_STATUS_FIELDS = [
+            "TEMP_INS", "UR_INS", "PTO_INS", "PRESS_INS", "VEL",
+            "RAJ", "DIR", "RAD_GLO", "CHUVA", "TBATERIA"
+        ];
+
+        function mgPyStatusSensor(row, campo, situacao) {
+            const historico = mgRegistrosOrdenados(row);
+            const api = MG_API_FIELDS[campo];
+            if (!historico.length || !api) return "PANE";
+
+            const validos = historico.filter(r => mgNum(r?.[api]) !== null && mgDate(r));
+            if (!validos.length) {
+                return String(situacao || "").toUpperCase().includes("OPERANTE") ? "PAROU" : "PANE";
+            }
+
+            const dt = validos.reduce((maior, r) => {
+                const d = mgDate(r);
+                return !maior || d > maior ? d : maior;
+            }, null);
+
+            const horas = (Date.now() - dt.getTime()) / 3600000;
+            if (horas >= 72) return "PAROU";
+            if (horas >= 2) return "ATENÇÃO";
+            return "OPERANTE";
+        }
+
+        function mgPyIsolamentoAtual(row, campo) {
+            const u = mgUltimoRegistro(row);
+            if (!u) return false;
+            const v = u?.[MG_API_FIELDS[campo]];
+            return v !== null && v !== undefined && String(v).includes("*");
+        }
+
+        function mgPyStatusEstacao(row) {
+            const situacao = String(row?.["SITUAÇÃO ESTAÇÃO"] || "").toUpperCase();
+            const status = MG_PY_STATUS_FIELDS.map(c => mgPyStatusSensor(row, c, situacao));
+
+            if (status.length && status.every(s => s === "PANE")) return "PANE";
+            if (status.includes("PAROU")) return "PAROU";
+            if (status.includes("ATENÇÃO")) return "ATENÇÃO";
+
+            const possuiIsolamento = MG_PY_STATUS_FIELDS.some(c => mgPyIsolamentoAtual(row, c));
+            if (possuiIsolamento) return "ISOLADO";
+            return "OPERANTE";
+        }
+
+        function mgStatusEstacao(r, sensorStatuses) {
+            const s=sensorStatuses;
+            if(s.length && s.every(x=>x==="PANE")) return "PANE";
+            if(s.includes("PAROU")) return "PAROU";
+            if(s.includes("ATENÇÃO")) return "ATENÇÃO";
+            if(s.includes("ISOLADO")) return "ISOLADO";
+            return "OPERANTE";
+        }
+        function mgDiasSem(r) {
+            const u=mgUltimoRegistro(r); if(!u) return null;
+            const d=mgDate(u); return d ? Math.max(0,Math.round(((Date.now()-d.getTime())/86400000)*10)/10) : null;
+        }
+        function mgQcEstacao(row,todos) {
+            const valores={};
+            for(const c of MG_VARIAVEIS) valores[c]=mgUltimoValor(row,c);
+            const motivos={}; MG_VARIAVEIS.forEach(c=>motivos[c]=[]);
+            const isolados=new Set(); MG_VARIAVEIS.forEach(c=>{if(mgIsoladoAtual(row,c)) isolados.add(c);});
+
+            for(const c of MG_VARIAVEIS) {
+                const v=valores[c];
+                if(v===null) { motivos[c].push("sem valor observado"); continue; }
+                const lim=MG_LIMITES[c]; if(lim && (v<lim[0] || v>lim[1])) motivos[c].push("fora do limite físico");
+                if(isolados.has(c)) motivos[c].push("valor isolado (*)");
+                if(c==="RAD_GLO") { const nr=mgRadiacaoNoturna(row); if(nr) motivos[c].push(`RAD_GLO > 20 W/m² entre 22 e 08 UTC (${nr} ocorrência(s))`); }
+                const serie=mgSerie(row,c);
+                if(serie.length>=MG_PERSISTENCIA_MIN) {
+                    const ult=serie.slice(-MG_PERSISTENCIA_MIN).map(x=>x.value), unicos=new Set(ult.map(x=>String(x)));
+                    const val=ult[ult.length-1];
+                    if(unicos.size===1 && !((c==="DIR"||c==="CHUVA"||c==="RAD_GLO") && val===0)) motivos[c].push("persistência/sensor possivelmente travado");
+                }
+                if(Object.prototype.hasOwnProperty.call(MG_SALTOS,c) && serie.length>=2) {
+                    const a=serie[serie.length-2].value,b=serie[serie.length-1].value;
+                    if(Math.abs(b-a)>MG_SALTOS[c]) motivos[c].push("salto temporal anormal");
+                }
+                if(MG_VIZ_LIMIAR[c] !== undefined) {
+                    const viz=mgVizinhas(row,todos), vals=[];
+                    for(const z of viz) { const x=mgUltimoValor(z.row,c); if(x!==null) vals.push(x); }
+                    if(vals.length>=2) {
+                        const med=mgMediana(vals), disp=Math.max(...vals)-Math.min(...vals);
+                        if(disp<=MG_VIZ_DISPERSAO[c] && Math.abs(v-med)>MG_VIZ_LIMIAR[c]) motivos[c].push("divergência em relação às estações próximas");
+                    }
+                }
+            }
+            const coh=mgCoerencia(valores);
+            for(const m of coh) {
+                if(m.includes("TEMP")) motivos.TEMP_INS.push(m);
+                else if(m.includes("UR_")) motivos.UR_INS.push(m);
+                else if(m.includes("PTO")) motivos.PTO_INS.push(m);
+                else if(m.includes("VEL") || m.includes("RAJ")) { motivos.VEL.push(m); motivos.RAJ.push(m); }
+            }
+            const sensorStatuses={}; MG_VARIAVEIS.forEach(c=>sensorStatuses[c]=mgStatusSensor(row,c,row["SITUAÇÃO ESTAÇÃO"]));
+
+            // Status global: mesma ordem de prioridade do Python.
+            let status = mgPyStatusEstacao(row);
+            const dias=mgDiasSem(row);
+            const sit=String(row["SITUAÇÃO ESTAÇÃO"]||"").toUpperCase();
+
+            // Regras herdadas do Python:
+            // OPERANTE + >= 3 dias sem transmissão -> PAROU
+            // PANE + <= 2 dias + continuidade >= 48 registros -> RETORNOU
+            if(sit.includes("OPERANTE") && dias!==null && dias>=3) status="PAROU";
+            else if(sit.includes("PANE") && dias!==null && dias<=2 && mgRegistrosOrdenados(row).length>=48) status="RETORNOU";
+
+            // Python VARIAVEIS não inclui RAD_GLO no _TOTAL_SUSPEITAS.
+            // Mantemos RAD_GLO disponível na tabela, mas fora do quantitativo.
+            const totalPython = MG_VARIAVEIS.filter(c => c !== "RAD_GLO")
+                .reduce((n,c) => n + (motivos[c]?.length || 0), 0);
+            const total=totalPython;
+            return {valores,motivos,sensorStatuses,status,total,totalPython,isolados};
+        }
+        function enriquecerMonitoramentoGeral(df) {
+            const cache=new Map();
+            for(const r of df) cache.set(r["CÓDIGO"],mgQcEstacao(r,df));
+            for(const r of df) r._MG_QC=cache.get(r["CÓDIGO"]);
+            return df;
+        }
+
         const COLUNAS_TABELA = [
             "CÓDIGO", "NOME ESTAÇÃO", "UF", "REGIÃO", "SITUAÇÃO ESTAÇÃO", "STATUS OPERACIONAL",
-            "ÚLTIMA TRANSMISSÃO", "DIAS SEM TRANSMISSÃO", "STATUS TELEMETRIA", "TIPO TRANSMISSÃO",
-            "TEMP_MAX", "TEMP_MIN", "UMD_MAX", "UMD_MIN", "VEN_DIR", "VEN_VEL", "VEN_RAJ", "CHUVA_1H",
-            ...Object.values(SENSORES)
+            "DIAS SEM TRANSMISSÃO", "TIPO TRANSMISSÃO",
+            "TEMP_INS", "TEMP_MAX", "TEMP_MIN", "UR_INS", "UR_MAX", "UR_MIN",
+            "PTO_INS", "PTO_MAX", "PTO_MIN", "PRESS_INS", "PRESS_MAX", "PRESS_MIN",
+            "DIR", "VEL", "RAJ", "RAD_GLO", "CHUVA", "TBATERIA"
         ];
-        const COLUNAS_NUMERICAS = new Set(["DIAS SEM TRANSMISSÃO", "TEMP_MAX", "TEMP_MIN", "UMD_MAX", "UMD_MIN", "VEN_DIR", "VEN_VEL", "VEN_RAJ", "CHUVA_1H"]);
+        const COLUNAS_NUMERICAS = new Set([
+            "DIAS SEM TRANSMISSÃO", ...MG_VARIAVEIS
+        ]);
+        const MG_CABECALHOS = {
+            TEMP_INS:"TEMP INS", TEMP_MAX:"TEMP MAX", TEMP_MIN:"TEMP MIN", UR_INS:"UR INS", UR_MAX:"UR MAX", UR_MIN:"UR MIN",
+            PTO_INS:"PTO INS", PTO_MAX:"PTO MAX", PTO_MIN:"PTO MIN", PRESS_INS:"PRESS INS", PRESS_MAX:"PRESS MAX", PRESS_MIN:"PRESS MIN",
+            DIR:"DIR", VEL:"VEL", RAJ:"RAJ", RAD_GLO:"RAD GLO", CHUVA:"CHUVA", TBATERIA:"T. BATERIA"
+        };
+        const MG_CASAS = {TEMP_INS:1,TEMP_MAX:1,TEMP_MIN:1,UR_INS:1,UR_MAX:1,UR_MIN:1,PTO_INS:1,PTO_MAX:1,PTO_MIN:1,PRESS_INS:1,PRESS_MAX:1,PRESS_MIN:1,DIR:0,VEL:1,RAJ:1,RAD_GLO:1,CHUVA:1,TBATERIA:1};
+        const MG_STATUS_SENSOR_CLASS = s => statusClass(EMOJI_STATUS[s] || s);
 
         function valorParaOrdenacao(r, coluna) {
-            let val = r[coluna];
-            if (coluna === "SITUAÇÃO ESTAÇÃO" || coluna === "STATUS OPERACIONAL" || Object.values(SENSORES).includes(coluna)) return String(val ?? "");
-            if (COLUNAS_NUMERICAS.has(coluna)) {
-                const num = parseFloat(String(val).replace(",", "."));
-                return isNaN(num) ? -Infinity : num;
+            const qc=r._MG_QC;
+            if (MG_VARIAVEIS.includes(coluna) && qc) {
+                const v=qc.valores[coluna]; return v===null ? -Infinity : v;
             }
+            if (coluna === "DIAS SEM TRANSMISSÃO") return r._MG_QC ? (mgDiasSem(r) ?? -Infinity) : (r[coluna] ?? -Infinity);
+            if (coluna === "SITUAÇÃO ESTAÇÃO" || coluna === "STATUS OPERACIONAL") return String(coluna==="STATUS OPERACIONAL" && qc ? qc.status : r[coluna] ?? "");
             if (coluna === "ÚLTIMA TRANSMISSÃO") return r._dtUltima ? r._dtUltima.getTime() : -Infinity;
-            return String(val ?? "").toLowerCase();
+            return String(r[coluna] ?? "").toLowerCase();
         }
 
         function aplicarOrdenacao() {
-            let dados = [...DF_FILTRADO];
-            if (ordenacaoAtual.coluna) {
-                const col = ordenacaoAtual.coluna;
-                const dir = ordenacaoAtual.direcao;
-                dados.sort((a, b) => {
-                    const va = valorParaOrdenacao(a, col), vb = valorParaOrdenacao(b, col);
-                    if (typeof va === "number" && typeof vb === "number") return (va - vb) * dir;
-                    return String(va).localeCompare(String(vb), "pt-BR") * dir;
-                });
-            }
-            DF_ORDENADO = dados;
-            renderizarTabela(DF_ORDENADO);
+            let dados=[...DF_FILTRADO];
+            if(ordenacaoAtual.coluna){ const col=ordenacaoAtual.coluna,dir=ordenacaoAtual.direcao;
+                dados.sort((a,b)=>{const va=valorParaOrdenacao(a,col),vb=valorParaOrdenacao(b,col); if(typeof va==="number"&&typeof vb==="number") return (va-vb)*dir; return String(va).localeCompare(String(vb),"pt-BR")*dir;}); }
+            DF_ORDENADO=dados; renderizarTabela(DF_ORDENADO);
         }
-        function ordenarPorColuna(coluna) {
-            if (ordenacaoAtual.coluna === coluna) ordenacaoAtual.direcao *= -1;
-            else { ordenacaoAtual.coluna = coluna; ordenacaoAtual.direcao = 1; }
-            aplicarOrdenacao();
+        function ordenarPorColuna(coluna){ if(ordenacaoAtual.coluna===coluna) ordenacaoAtual.direcao*=-1; else {ordenacaoAtual.coluna=coluna;ordenacaoAtual.direcao=1;} aplicarOrdenacao(); }
+        function mgFormat(v,c){ if(v===null||v===undefined||v==="") return "—"; const n=mgNum(v); if(n===null) return String(v); return n.toFixed(MG_CASAS[c]??1); }
+        function mgEsc(s){ return String(s??"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+        function mgTooltip(motivos){ return motivos && motivos.length ? motivos.join(" • ") : "Nenhuma evidência de suspeição nas regras executadas."; }
+        function mgCelulaSensor(r,c){
+            const q=r._MG_QC; const v=q?.valores?.[c] ?? null; const motivos=q?.motivos?.[c] || []; const suspeito=motivos.length>0; const st=q?.sensorStatuses?.[c] || "PANE";
+            const iso=q?.isolados?.has(c); const txt=mgFormat(v,c); const classe=`${MG_STATUS_SENSOR_CLASS(st)} qc-cell${suspeito?" qc-suspeito":""} qc-tooltip`;
+            const dot=`<i class="qc-dot ${suspeito?"bad":"ok"}"></i>`; const star=iso?`<span class="qc-star">*</span>`:"";
+            return `<td class="${classe}" title="${mgEsc(mgTooltip(motivos))}">${dot}${mgEsc(txt)}${star}</td>`;
+        }
+        function baixarTabelaMonitoramento() {
+            const dados = Array.isArray(DF_ORDENADO) && DF_ORDENADO.length
+                ? DF_ORDENADO
+                : (Array.isArray(DF_FILTRADO) && DF_FILTRADO.length ? DF_FILTRADO : DF);
+            if (!dados || !dados.length) { alert("Não há dados disponíveis para baixar."); return; }
+            const colunas = COLUNAS_TABELA;
+            const esc = (v) => {
+                if (v === null || v === undefined) return "";
+                return `"${String(v).replace(/^[🟢🔴]\s*/, "").replace(/\*$/, "").replace(/"/g, '""')}"`;
+            };
+            const linhas = [colunas.map(esc).join(";")];
+            for (const r of dados) {
+                const q = r._MG_QC || {};
+                linhas.push(colunas.map(c => {
+                    if (MG_VARIAVEIS.includes(c)) return esc(q.valores?.[c] ?? "");
+                    if (c === "STATUS OPERACIONAL") return esc(q.status ?? r[c] ?? "");
+                    if (c === "SITUAÇÃO ESTAÇÃO") return esc(r[c] ?? r["SITUAÇÃO DA ESTAÇÃO"] ?? "");
+                    if (c === "DIAS SEM TRANSMISSÃO") return esc(mgDiasSem(r) ?? "");
+                    return esc(r[c] ?? "");
+                }).join(";"));
+            }
+            const blob = new Blob(["\uFEFF" + linhas.join("\r\n")], {type:"text/csv;charset=utf-8;"});
+            const url = URL.createObjectURL(blob); const a = document.createElement("a");
+            a.href=url; a.download=`monitoramento_geral_${new Date().toISOString().slice(0,10)}.csv`;
+            document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
         }
 
-        function renderizarTabela(df) {
-            const head = document.getElementById("tabelaHead"), body = document.getElementById("tabelaBody");
-            head.innerHTML = COLUNAS_TABELA.map(c => {
-                let arrow = (ordenacaoAtual.coluna === c) ? `<span class="sort-arrow">${ordenacaoAtual.direcao === 1 ? "▲" : "▼"}</span>` : "";
-                return `<th onclick="ordenarPorColuna('${c.replace(/'/g,"\\'")}')">${c}${arrow}</th>`;
+        function renderizarTabela(df){
+            const head=document.getElementById("tabelaHead"),body=document.getElementById("tabelaBody");
+            head.innerHTML=COLUNAS_TABELA.map(c=>{let arrow=(ordenacaoAtual.coluna===c)?`<span class="sort-arrow">${ordenacaoAtual.direcao===1?"▲":"▼"}</span>`:""; const label=MG_CABECALHOS[c]||c; return `<th onclick="ordenarPorColuna('${c.replace(/'/g,"\\'")}')" title="${MG_LABELS[c]||label}">${label}${arrow}</th>`;}).join("");
+            let suspeitasEst=0,suspeitasVal=0;
+            body.innerHTML=df.map(r=>{
+                const q=r._MG_QC||{status:r["STATUS OPERACIONAL"],total:0,motivos:{},valores:{},sensorStatuses:{},isolados:new Set()};
+                if(q.total>0) suspeitasEst++; suspeitasVal+=q.total||0;
+                const status=q.status||r["STATUS OPERACIONAL"];
+                let html="<tr>";
+                html+=`<td class="station-id${q.total?" station-suspect":""}">${mgEsc(r["CÓDIGO"])}</td>`;
+                html+=`<td class="${q.total?"station-suspect":""}">${mgEsc(r["NOME ESTAÇÃO"])}</td>`;
+                html+=`<td>${mgEsc(r["UF"])}</td><td>${mgEsc(r["REGIÃO"])}</td>`;
+                html+=`<td class="${statusClass(r["SITUAÇÃO ESTAÇÃO"])}">${mgEsc(r["SITUAÇÃO ESTAÇÃO"]??"")}</td>`;
+                html+=`<td class="${statusClass(EMOJI_STATUS[status]||status)}">${mgEsc(EMOJI_STATUS[status]||status)}</td>`;
+                const dias=mgDiasSem(r); html+=`<td>${dias===null?"—":dias.toFixed(1)+(dias<1?" dia":" dias")}</td>`;
+                html+=`<td>${mgEsc(r["TIPO TRANSMISSÃO"]??"")}</td>`;
+                for(const c of MG_VARIAVEIS) html+=mgCelulaSensor(r,c);
+                html+="</tr>"; return html;
             }).join("");
-            body.innerHTML = df.map(r => "<tr>" + COLUNAS_TABELA.map(c => {
-                let val = r[c];
-                if (c === "SITUAÇÃO ESTAÇÃO" || c === "STATUS OPERACIONAL" || Object.values(SENSORES).includes(c)) {
-                    val = EMOJI_STATUS[val] || val; return `<td class="${statusClass(val)}">${val}</td>`;
-                }
-                return `<td>${val ?? ""}</td>`;
-            }).join("") + "</tr>").join("");
+            const sum=document.getElementById("qcSummary"); if(sum) sum.innerHTML=`QC: <strong>${suspeitasEst}</strong> estação(ões) com evidências | <strong>${suspeitasVal}</strong> ocorrência(s)`;
         }
 
         function haversine(lat1, lon1, lat2, lon2) {
@@ -1644,6 +2288,7 @@
         async function atualizarTudo(forcar) {
             if (forcar) {
                 localStorage.removeItem("estacoes_cache");
+                localStorage.removeItem("estacoes_cache_python_v13");
                 Object.keys(localStorage).forEach(k => { if (k.startsWith("vitral_")) localStorage.removeItem(k); });
             }
             DF = await processarTodasEstacoes();
