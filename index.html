@@ -230,6 +230,119 @@
         button.kml { background: #238636; border-color: #238636; }
         button.ghost { background: transparent; }
 
+        /* =========================================================
+           CONTROLES DOS GRÁFICOS
+           O tema NÃO altera o cabeçalho/cartão; altera somente a
+           área de plotagem (Plotly/canvas).
+           ========================================================= */
+        .chart-box-plotly,
+        .chart-box-compact {
+            position: relative;
+        }
+
+        .chart-box-plotly .plotly-chart-area {
+            width: 100%;
+            min-height: 240px;
+            border-radius: 3px;
+            overflow: hidden;
+            background: #161b22;
+            transition: background .15s ease;
+        }
+
+        .chart-box-plotly[data-chart-theme="light"] .plotly-chart-area {
+            background: #ffffff;
+        }
+
+        .chart-box-plotly[data-chart-theme="dark"] .plotly-chart-area {
+            background: #161b22;
+        }
+
+        .chart-box-compact canvas {
+            background: #161b22;
+            border-radius: 3px;
+            transition: background .15s ease;
+        }
+
+        .chart-box-compact[data-chart-theme="light"] canvas {
+            background: #ffffff;
+        }
+
+        .chart-box-compact[data-chart-theme="dark"] canvas {
+            background: #161b22;
+        }
+
+        .chart-tools {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin-left: auto;
+        }
+
+        .chart-tool-btn {
+            font-size: .68rem;
+            line-height: 1;
+            padding: 5px 7px;
+            border-radius: 5px;
+            background: var(--panel);
+            color: var(--muted);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .chart-tool-btn:hover {
+            border-color: #2f81f7;
+            color: var(--text);
+        }
+
+        .chart-theme-control {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            padding: 6px 10px;
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            background: var(--panel);
+        }
+
+        .chart-theme-control label {
+            margin: 0;
+            font-size: .82rem;
+            color: var(--muted);
+        }
+
+        .chart-theme-control select {
+            min-width: 145px;
+        }
+
+        .chart-box-plotly:fullscreen,
+        .chart-box-compact:fullscreen {
+            width: 100vw !important;
+            height: 100vh !important;
+            max-height: none !important;
+            margin: 0 !important;
+            padding: 16px !important;
+            border-radius: 0 !important;
+            background: var(--panel) !important;
+            z-index: 99999 !important;
+        }
+
+        .chart-box-plotly:fullscreen .plotly-chart-area {
+            height: calc(100vh - 72px) !important;
+            max-height: none !important;
+        }
+
+        .chart-box-compact:fullscreen canvas {
+            max-height: calc(100vh - 72px) !important;
+        }
+
+        .chart-box-plotly .js-plotly-plot,
+        .chart-box-plotly .plotly,
+        .chart-box-plotly .svg-container {
+            width: 100% !important;
+        }
+
+
         .chart-box-plotly {
             background: var(--panel);
             border: 1px solid var(--border);
@@ -501,19 +614,26 @@
         <h2>📈 Análise Rápida (Últimos 10 Dias — API Vitral / Plotly)</h2>
         <div class="controls-row">
             <button class="primary" onclick="plotarComparacaoVitral()">📊 Plotar Gráficos Rápidos (Vitral)</button>
-            <span class="caption" style="margin-left:8px;">🖱️ Arraste o mouse no gráfico para selecionar uma área (zoom)</span>
+            <span class="caption" style="margin-left:8px;">🖱️ Arraste no gráfico para zoom | Scroll = zoom | Duplo clique = reset</span>
+            <div class="chart-theme-control">
+                <label for="temaGraficos">🎨 Fundo:</label>
+                <select id="temaGraficos" onchange="alterarTemaGraficos(this.value)">
+                    <option value="light">☀️ Claro</option>
+                    <option value="dark">🌙 Escuro</option>
+                </select>
+            </div>
         </div>
         
         <div class="charts-grid-unified" id="comparacaoVitralGrid"></div>
 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px;" id="ventoVitralRow">
             <div class="chart-box-compact" style="height:320px;">
-                <button class="zoom-reset" onclick="resetZoom('chartVentoSetasVitral')">↩️ Reset Zoom</button>
+                <button class="zoom-reset" onclick="resetZoom('chartVentoSetasVitral')">↩️ Reset Zoom</button><button class="zoom-reset btn-fullscreen" onclick="alternarTelaCheia(this.closest('.chart-box-compact'))">⛶ Tela cheia</button>
                 <h4 style="margin:0 0 4px; font-size:0.85rem;">🧭 Direção e Velocidade do Vento (Vitral)</h4>
                 <canvas id="chartVentoSetasVitral" height="140"></canvas>
             </div>
             <div class="chart-box-compact" style="height:320px;">
-                <button class="zoom-reset" onclick="resetZoom('chartVentoRadarVitral')">↩️ Reset Zoom</button>
+                <button class="zoom-reset" onclick="resetZoom('chartVentoRadarVitral')">↩️ Reset Zoom</button><button class="zoom-reset btn-fullscreen" onclick="alternarTelaCheia(this.closest('.chart-box-compact'))">⛶ Tela cheia</button>
                 <h4 style="margin:0 0 4px; font-size:0.85rem; text-align:center;">🌹 Rosa dos Ventos (Vitral)</h4>
                 <canvas id="chartVentoRadarVitral" height="280"></canvas>
             </div>
@@ -532,7 +652,7 @@
                 <button class="ghost" onclick="definirPeriodoPadrao()" title="Últimos 10 dias">↩️ Padrão (10 dias)</button>
             </div>
             <button id="btnPlotar" class="primary" onclick="plotarComparacaoMultiVariavel()">📊 Plotar Histórico (Apitempo)</button>
-            <span class="caption" style="margin-left:8px;">🖱️ Selecione uma área para zoom | Scroll = zoom | Arrastar = mover</span>
+            <span class="caption" style="margin-left:8px;">🖱️ Arraste para selecionar o zoom | Scroll = zoom | Duplo clique = reset</span>
             
             <div style="width: 100%; margin-top: 8px;">
                 <div class="chart-loading-container" id="chartLoadingContainer">
@@ -546,13 +666,13 @@
 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px;" id="ventoComparacaoRow">
             <div class="chart-box-compact" style="height:320px;">
-                <button class="zoom-reset" onclick="resetZoom('chartVentoSetasApitempo')">↩️ Reset Zoom</button>
+                <button class="zoom-reset" onclick="resetZoom('chartVentoSetasApitempo')">↩️ Reset Zoom</button><button class="zoom-reset btn-fullscreen" onclick="alternarTelaCheia(this.closest('.chart-box-compact'))">⛶ Tela cheia</button>
                 <h4 style="margin:0 0 4px; font-size:0.85rem;">🧭 Direção e Velocidade do Vento (Apitempo)</h4>
                 <canvas id="chartVentoSetasApitempo" height="140"></canvas>
                 <div class="wind-legend" id="legendVento"></div>
             </div>
             <div class="chart-box-compact" style="height:320px;">
-                <button class="zoom-reset" onclick="resetZoom('chartVentoRadarApitempo')">↩️ Reset Zoom</button>
+                <button class="zoom-reset" onclick="resetZoom('chartVentoRadarApitempo')">↩️ Reset Zoom</button><button class="zoom-reset btn-fullscreen" onclick="alternarTelaCheia(this.closest('.chart-box-compact'))">⛶ Tela cheia</button>
                 <h4 style="margin:0 0 4px; font-size:0.85rem; text-align:center;">🌹 Rosa dos Ventos (Apitempo)</h4>
                 <canvas id="chartVentoRadarApitempo" height="280"></canvas>
             </div>
@@ -598,6 +718,320 @@
                 chartInstances[chartId].resetZoom();
             }
         }
+
+
+        /* =============================================================
+           TEMA, ZOOM E TELA CHEIA DOS GRÁFICOS
+           ============================================================= */
+        let TEMA_GRAFICOS = localStorage.getItem("tema_graficos_inmet") || "dark";
+
+        function coresGrafico() {
+            return TEMA_GRAFICOS === "light"
+                ? {
+                    bg: "#ffffff",
+                    text: "#1f2937",
+                    muted: "#4b5563",
+                    grid: "#d1d5db",
+                    zero: "#9ca3af",
+                    modebar: "#ffffff"
+                }
+                : {
+                    bg: "#161b22",
+                    text: "#e6edf3",
+                    muted: "#9da7b3",
+                    grid: "#30363d",
+                    zero: "#484f58",
+                    modebar: "#161b22"
+                };
+        }
+
+        function alternarTelaCheia(box) {
+            if (!box) return;
+
+            if (!document.fullscreenElement) {
+                const promessa = box.requestFullscreen ? box.requestFullscreen() : null;
+                if (promessa && promessa.catch) promessa.catch(() => {});
+            } else if (document.fullscreenElement === box) {
+                if (document.exitFullscreen) document.exitFullscreen();
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen().finally(() => {
+                        if (box.requestFullscreen) box.requestFullscreen();
+                    });
+                }
+            }
+        }
+
+        function atualizarBotoesTelaCheia() {
+            document.querySelectorAll(".chart-box-plotly, .chart-box-compact").forEach(box => {
+                const btn = box.querySelector(".btn-fullscreen");
+                if (!btn) return;
+                btn.textContent = document.fullscreenElement === box
+                    ? "⛶ Sair da tela cheia"
+                    : "⛶ Tela cheia";
+            });
+        }
+
+        function prepararFerramentasGrafico(box, plotDivId) {
+            if (!box) return;
+
+            box.dataset.chartTheme = TEMA_GRAFICOS;
+
+            const tools = document.createElement("div");
+            tools.className = "chart-tools";
+
+            const btnZoom = document.createElement("button");
+            btnZoom.className = "chart-tool-btn";
+            btnZoom.textContent = "🔍 Zoom";
+            btnZoom.title = "Ativa o zoom por seleção";
+            btnZoom.onclick = () => {
+                const plot = document.getElementById(plotDivId);
+                if (plot && window.Plotly) {
+                    Plotly.relayout(plot, {dragmode: "zoom"});
+                }
+            };
+
+            const btnReset = document.createElement("button");
+            btnReset.className = "chart-tool-btn";
+            btnReset.textContent = "↩️ Reset";
+            btnReset.title = "Retorna ao enquadramento original";
+            btnReset.onclick = () => {
+                const plot = document.getElementById(plotDivId);
+                if (plot && window.Plotly) Plotly.relayout(plot, { "xaxis.autorange": true, "yaxis.autorange": true });
+            };
+
+            const btnFull = document.createElement("button");
+            btnFull.className = "chart-tool-btn btn-fullscreen";
+            btnFull.textContent = "⛶ Tela cheia";
+            btnFull.title = "Abrir este gráfico em tela cheia";
+            btnFull.onclick = () => alternarTelaCheia(box);
+
+            tools.appendChild(btnZoom);
+            tools.appendChild(btnReset);
+            tools.appendChild(btnFull);
+
+            const header = box.querySelector(".chart-header");
+            if (header) header.appendChild(tools);
+            else box.appendChild(tools);
+        }
+
+
+
+
+        function nomeEstacaoPorCodigo(codigo) {
+            const lista = (typeof DF !== "undefined" && Array.isArray(DF)) ? DF : [];
+            const est = lista.find(r => String(r["CÓDIGO"] ?? "").trim() === String(codigo ?? "").trim());
+            return nomeEstacaoGrafico(
+                codigo,
+                est ? (est["NOME ESTAÇÃO"] ?? est["NOME"] ?? "") : ""
+            );
+        }
+
+        function nomeEstacaoGrafico(codigo, nome) {
+            const cod = String(codigo ?? "").trim();
+            const nom = String(nome ?? "").trim();
+            if (cod && nom) return `${cod} - ${nom}`;
+            return cod || nom || "Estação";
+        }
+
+        function ajustarGraficoAutomaticamente(plotDiv) {
+            if (!plotDiv || !window.Plotly) return;
+
+            const box = plotDiv.closest(".chart-box-plotly");
+            const area = plotDiv.closest(".plotly-chart-area");
+            if (!box || !area) return;
+
+            const largura = Math.max(300, area.clientWidth);
+            const emTelaCheia = document.fullscreenElement === box;
+
+            // A altura acompanha a área disponível.
+            // Fora da tela cheia mantém o gráfico compacto; em tela cheia,
+            // ocupa praticamente toda a janela.
+            const altura = emTelaCheia
+                ? Math.max(420, window.innerHeight - 105)
+                : Math.max(240, Math.min(360, Math.round(largura * 0.34)));
+
+            plotDiv.style.width = "100%";
+            plotDiv.style.height = altura + "px";
+            area.style.height = altura + "px";
+
+            Plotly.relayout(plotDiv, {
+                width: largura,
+                height: altura
+            });
+            Plotly.Plots.resize(plotDiv);
+        }
+
+        function instalarAjusteAutomaticoPlotly(plotDiv) {
+            if (!plotDiv || plotDiv.dataset.autoFitInstalled === "1") return;
+            plotDiv.dataset.autoFitInstalled = "1";
+
+            // Depois de zoom/pan/reset, recalcula imediatamente o tamanho
+            // para que o gráfico continue preenchendo a área disponível.
+            plotDiv.on("plotly_relayout", () => {
+                requestAnimationFrame(() => {
+                    if (plotDiv && document.body.contains(plotDiv)) {
+                        Plotly.Plots.resize(plotDiv);
+                    }
+                });
+            });
+
+            // Se o cartão mudar de tamanho, o gráfico acompanha.
+            if (window.ResizeObserver) {
+                const area = plotDiv.closest(".plotly-chart-area");
+                if (area) {
+                    const observer = new ResizeObserver(() => {
+                        requestAnimationFrame(() => ajustarGraficoAutomaticamente(plotDiv));
+                    });
+                    observer.observe(area);
+                    plotDiv._autoFitObserver = observer;
+                }
+            }
+        }
+
+        function aplicarTemaPlotly(plotDiv) {
+            if (!plotDiv || !window.Plotly) return;
+            const c = coresGrafico();
+            const box = plotDiv.closest(".chart-box-plotly");
+            if (box) box.dataset.chartTheme = TEMA_GRAFICOS;
+
+            Plotly.relayout(plotDiv, {
+                paper_bgcolor: c.bg,
+                plot_bgcolor: c.bg,
+                font: {color: c.text},
+                "xaxis.gridcolor": c.grid,
+                "xaxis.zerolinecolor": c.zero,
+                "xaxis.color": c.text,
+                "xaxis.title.font.color": c.text,
+                "yaxis.gridcolor": c.grid,
+                "yaxis.zerolinecolor": c.zero,
+                "yaxis.color": c.text,
+                "yaxis.title.font.color": c.text,
+                "legend.font.color": c.text
+            });
+
+            const modebar = plotDiv.querySelector(".modebar");
+            if (modebar) {
+                modebar.style.background = c.modebar;
+                modebar.style.borderRadius = "4px";
+            }
+        }
+
+        function aplicarTemaChartJs() {
+            const c = coresGrafico();
+
+            document.querySelectorAll(".chart-box-compact").forEach(box => {
+                box.dataset.chartTheme = TEMA_GRAFICOS;
+            });
+
+            if (typeof chartInstances !== "undefined") {
+                Object.values(chartInstances).forEach(chart => {
+                    if (!chart || !chart.options) return;
+
+                    if (chart.options.scales?.x) {
+                        chart.options.scales.x.ticks = {
+                            ...(chart.options.scales.x.ticks || {}),
+                            color: c.text
+                        };
+                        chart.options.scales.x.grid = {
+                            ...(chart.options.scales.x.grid || {}),
+                            color: c.grid
+                        };
+                        if (chart.options.scales.x.title) {
+                            chart.options.scales.x.title.color = c.text;
+                        }
+                    }
+
+                    if (chart.options.scales?.y) {
+                        chart.options.scales.y.ticks = {
+                            ...(chart.options.scales.y.ticks || {}),
+                            color: c.text
+                        };
+                        chart.options.scales.y.grid = {
+                            ...(chart.options.scales.y.grid || {}),
+                            color: c.grid
+                        };
+                        if (chart.options.scales.y.title) {
+                            chart.options.scales.y.title.color = c.text;
+                        }
+                    }
+
+                    if (chart.options.scales?.r) {
+                        chart.options.scales.r.angleLines = {
+                            ...(chart.options.scales.r.angleLines || {}),
+                            color: c.grid
+                        };
+                        chart.options.scales.r.grid = {
+                            ...(chart.options.scales.r.grid || {}),
+                            color: c.grid
+                        };
+                        chart.options.scales.r.pointLabels = {
+                            ...(chart.options.scales.r.pointLabels || {}),
+                            color: c.text
+                        };
+                        chart.options.scales.r.ticks = {
+                            ...(chart.options.scales.r.ticks || {}),
+                            color: c.text,
+                            backdropColor: "transparent"
+                        };
+                    }
+
+                    if (chart.options.plugins?.legend?.labels) {
+                        chart.options.plugins.legend.labels.color = c.text;
+                    }
+
+                    chart.update("none");
+                });
+            }
+        }
+
+        function alterarTemaGraficos(tema) {
+            TEMA_GRAFICOS = tema === "light" ? "light" : "dark";
+            localStorage.setItem("tema_graficos_inmet", TEMA_GRAFICOS);
+
+            const seletor = document.getElementById("temaGraficos");
+            if (seletor) seletor.value = TEMA_GRAFICOS;
+
+            document.querySelectorAll(".chart-box-plotly").forEach(box => {
+                box.dataset.chartTheme = TEMA_GRAFICOS;
+                const plot = box.querySelector(".js-plotly-plot");
+                if (plot) aplicarTemaPlotly(plot);
+            });
+
+            aplicarTemaChartJs();
+        }
+
+
+        let _resizeTimerGraficos;
+        window.addEventListener("resize", () => {
+            clearTimeout(_resizeTimerGraficos);
+            _resizeTimerGraficos = setTimeout(() => {
+                document.querySelectorAll(".chart-box-plotly .js-plotly-plot").forEach(plot => {
+                    ajustarGraficoAutomaticamente(plot);
+                });
+            }, 80);
+        });
+
+        document.addEventListener("fullscreenchange", () => {
+            atualizarBotoesTelaCheia();
+
+            setTimeout(() => {
+                document.querySelectorAll(".chart-box-plotly .js-plotly-plot").forEach(plot => {
+                    if (window.Plotly) ajustarGraficoAutomaticamente(plot);
+                });
+                if (typeof chartInstances !== "undefined") {
+                    Object.values(chartInstances).forEach(chart => {
+                        if (chart && chart.resize) chart.resize();
+                    });
+                }
+            }, 100);
+        });
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const seletor = document.getElementById("temaGraficos");
+            if (seletor) seletor.value = TEMA_GRAFICOS;
+            alterarTemaGraficos(TEMA_GRAFICOS);
+        });
 
         const API_TEMPO = "https://apitempo.inmet.gov.br";
         const API_VITRAL = "https://apivitral.inmet.gov.br";
@@ -1767,7 +2201,7 @@
                     renderizarListaComparacao(DF, document.getElementById("compBusca").value);
                     atualizarMapaComparacao();
                 };
-                const span = document.createElement("span"); span.textContent = `${cod} - ${r["NOME ESTAÇÃO"]}`;
+                const span = document.createElement("span"); span.textContent = nomeEstacaoGrafico(cod, r["NOME ESTAÇÃO"]);
                 label.appendChild(chk); label.appendChild(span); cont.appendChild(label);
             });
         }
@@ -1866,7 +2300,7 @@
                 historicoEstacoes[codigo] = await obterDadosHistoricosApitempo(codigo, iniStr, fimStr);
                 progressoAtual += incremento;
                 loadingBar.style.width = Math.min(progressoAtual, 85) + "%";
-                loadingText.textContent = `Carregando dados da estação ${codigo} (${i + 1}/${codigos.length})...`;
+                loadingText.textContent = `Carregando dados da estação ${nomeEstacaoPorCodigo(codigo)} (${i + 1}/${codigos.length})...`;
             }
 
             loadingBar.style.width = "90%";
@@ -1887,11 +2321,11 @@
 
                     let trace;
                     if (varCfg.tipo === "scatter_markers") {
-                        trace = { x, y, type: "scatter", mode: "markers", marker: { size: 5, color: cor }, connectgaps:false, name: `${codigo}`, showlegend: true, opacity: 0.7 };
+                        trace = { x, y, type: "scatter", mode: "markers", marker: { size: 5, color: cor }, connectgaps:false, name: `${nomeEstacaoPorCodigo(codigo)}`, showlegend: true, opacity: 0.7 };
                     } else if (varCfg.tipo === "bar") {
-                        trace = { x, y, type: "bar", marker: { color: cor }, connectgaps:false, name: `${codigo}`, showlegend: true, opacity: 0.7 };
+                        trace = { x, y, type: "bar", marker: { color: cor }, connectgaps:false, name: `${nomeEstacaoPorCodigo(codigo)}`, showlegend: true, opacity: 0.7 };
                     } else {
-                        trace = { x, y, type: "scatter", mode: "lines", line: { width: 1.5, color: cor }, connectgaps:false, name: `${codigo}`, showlegend: true, opacity: 0.7 };
+                        trace = { x, y, type: "scatter", mode: "lines", line: { width: 1.5, color: cor }, connectgaps:false, name: `${nomeEstacaoPorCodigo(codigo)}`, showlegend: true, opacity: 0.7 };
                     }
                     traces.push(trace);
                 });
@@ -1907,7 +2341,7 @@
                 const legendaEl = document.createElement("span"); legendaEl.className = "chart-legend-custom";
                 codigos.forEach((codigo, idxEst) => {
                     const cor = PALETA_ESTACOES[idxEst % PALETA_ESTACOES.length];
-                    legendaEl.innerHTML += `<span><span class="legend-dot" style="background:${cor}"></span>${codigo}</span>`;
+                    legendaEl.innerHTML += `<span><span class="legend-dot" style="background:${cor}"></span>${nomeEstacaoPorCodigo(codigo)}</span>`;
                 });
                 header.appendChild(legendaEl);
 
@@ -1915,19 +2349,57 @@
                 btnCSV.onclick = () => exportarCSV(varKey, datasetsInfo); header.appendChild(btnCSV);
                 box.appendChild(header);
 
-                const plotDiv = document.createElement("div"); plotDiv.id = divId; plotDiv.style.width = "100%"; plotDiv.style.height = "300px";
-                box.appendChild(plotDiv); grid.appendChild(box);
+                const plotArea = document.createElement("div");
+                plotArea.className = "plotly-chart-area";
+                const plotDiv = document.createElement("div");
+                plotDiv.id = divId;
+                plotDiv.style.width = "100%";
+                plotDiv.style.height = "300px";
+                plotArea.appendChild(plotDiv);
+                box.appendChild(plotArea);
+                grid.appendChild(box);
 
-                const yaxisConfig = { title: varCfg.unidade, gridcolor: "#30363d", zerolinecolor: "#30363d" };
+                prepararFerramentasGrafico(box, divId);
+
+                const c = coresGrafico();
+                const yaxisConfig = {
+                    title: varCfg.unidade,
+                    gridcolor: c.grid,
+                    zerolinecolor: c.zero,
+                    color: c.text
+                };
                 if (varKey === "VEN_DIR") { yaxisConfig.range = [0, 360]; yaxisConfig.dtick = 45; }
 
                 Plotly.newPlot(divId, traces, {
-                    title: "", template: "plotly_dark", height: 300, hovermode: "x unified",
-                    margin: { l: 50, r: 20, t: 10, b: 40 }, paper_bgcolor: "#161b22", plot_bgcolor: "#161b22",
-                    font: { color: "#e6edf3", size: 10 }, showlegend: false,
+                    title: "",
+                    template: TEMA_GRAFICOS === "light" ? "plotly_white" : "plotly_dark",
+                    height: 300,
+                    hovermode: "x unified",
+                    margin: { l: 50, r: 20, t: 10, b: 40 },
+                    paper_bgcolor: c.bg,
+                    plot_bgcolor: c.bg,
+                    font: { color: c.text, size: 10 },
+                    showlegend: false,
                     dragmode: "zoom",
-                    xaxis: { title: "Data/Hora (UTC)", gridcolor: "#30363d", zerolinecolor: "#30363d" }, yaxis: yaxisConfig
-                }, { responsive: true, displayModeBar: true, modeBarButtonsToRemove: ["lasso2d", "select2d"] });
+                    xaxis: {
+                        title: "Data/Hora (UTC)",
+                        gridcolor: c.grid,
+                        zerolinecolor: c.zero,
+                        color: c.text
+                    },
+                    yaxis: yaxisConfig
+                }, {
+                    responsive: true,
+                    scrollZoom: true,
+                    displayModeBar: true,
+                    doubleClick: "reset",
+                    modeBarButtonsToRemove: ["lasso2d", "select2d"]
+                }).then(() => {
+                    const plot = document.getElementById(divId);
+                    aplicarTemaPlotly(plot);
+                    instalarAjusteAutomaticoPlotly(plot);
+                    requestAnimationFrame(() => ajustarGraficoAutomaticamente(plot));
+                });
             });
 
             const registrosVento = historicoEstacoes[codigos[0]] || [];
@@ -1966,11 +2438,11 @@
 
                     let trace;
                     if (varCfg.tipo === "scatter_markers") {
-                        trace = { x, y, type: "scatter", mode: "markers", marker: { size: 5, color: cor }, connectgaps:false, name: `${codigo}`, showlegend: true, opacity: 0.7 };
+                        trace = { x, y, type: "scatter", mode: "markers", marker: { size: 5, color: cor }, connectgaps:false, name: `${nomeEstacaoPorCodigo(codigo)}`, showlegend: true, opacity: 0.7 };
                     } else if (varCfg.tipo === "bar") {
-                        trace = { x, y, type: "bar", marker: { color: cor }, name: `${codigo}`, showlegend: true, opacity: 0.7 };
+                        trace = { x, y, type: "bar", marker: { color: cor }, name: `${nomeEstacaoPorCodigo(codigo)}`, showlegend: true, opacity: 0.7 };
                     } else {
-                        trace = { x, y, type: "scatter", mode: "lines", line: { width: 1.5, color: cor }, connectgaps:false, name: `${codigo}`, showlegend: true, opacity: 0.7 };
+                        trace = { x, y, type: "scatter", mode: "lines", line: { width: 1.5, color: cor }, connectgaps:false, name: `${nomeEstacaoPorCodigo(codigo)}`, showlegend: true, opacity: 0.7 };
                     }
                     traces.push(trace);
                 });
@@ -1986,7 +2458,7 @@
                 const legendaEl = document.createElement("span"); legendaEl.className = "chart-legend-custom";
                 codigos.forEach((codigo, idxEst) => {
                     const cor = PALETA_ESTACOES[idxEst % PALETA_ESTACOES.length];
-                    legendaEl.innerHTML += `<span><span class="legend-dot" style="background:${cor}"></span>${codigo}</span>`;
+                    legendaEl.innerHTML += `<span><span class="legend-dot" style="background:${cor}"></span>${nomeEstacaoPorCodigo(codigo)}</span>`;
                 });
                 header.appendChild(legendaEl);
 
@@ -1994,19 +2466,57 @@
                 btnCSV.onclick = () => exportarCSV(varKey, datasetsInfo); header.appendChild(btnCSV);
                 box.appendChild(header);
 
-                const plotDiv = document.createElement("div"); plotDiv.id = divId; plotDiv.style.width = "100%"; plotDiv.style.height = "240px";
-                box.appendChild(plotDiv); grid.appendChild(box);
+                const plotArea = document.createElement("div");
+                plotArea.className = "plotly-chart-area";
+                const plotDiv = document.createElement("div");
+                plotDiv.id = divId;
+                plotDiv.style.width = "100%";
+                plotDiv.style.height = "240px";
+                plotArea.appendChild(plotDiv);
+                box.appendChild(plotArea);
+                grid.appendChild(box);
 
-                const yaxisConfig = { title: varCfg.unidade, gridcolor: "#30363d", zerolinecolor: "#30363d" };
+                prepararFerramentasGrafico(box, divId);
+
+                const c = coresGrafico();
+                const yaxisConfig = {
+                    title: varCfg.unidade,
+                    gridcolor: c.grid,
+                    zerolinecolor: c.zero,
+                    color: c.text
+                };
                 if (varKey === "VEN_DIR") { yaxisConfig.range = [0, 360]; yaxisConfig.dtick = 45; }
 
                 Plotly.newPlot(divId, traces, {
-                    title: "", template: "plotly_dark", height: 240, hovermode: "x unified",
-                    margin: { l: 50, r: 20, t: 10, b: 40 }, paper_bgcolor: "#161b22", plot_bgcolor: "#161b22",
-                    font: { color: "#e6edf3", size: 10 }, showlegend: false,
+                    title: "",
+                    template: TEMA_GRAFICOS === "light" ? "plotly_white" : "plotly_dark",
+                    height: 240,
+                    hovermode: "x unified",
+                    margin: { l: 50, r: 20, t: 10, b: 40 },
+                    paper_bgcolor: c.bg,
+                    plot_bgcolor: c.bg,
+                    font: { color: c.text, size: 10 },
+                    showlegend: false,
                     dragmode: "zoom",
-                    xaxis: { title: "Data/Hora (UTC)", gridcolor: "#30363d", zerolinecolor: "#30363d" }, yaxis: yaxisConfig
-                }, { responsive: true, displayModeBar: true, modeBarButtonsToRemove: ["lasso2d", "select2d"] });
+                    xaxis: {
+                        title: "Data/Hora (UTC)",
+                        gridcolor: c.grid,
+                        zerolinecolor: c.zero,
+                        color: c.text
+                    },
+                    yaxis: yaxisConfig
+                }, {
+                    responsive: true,
+                    scrollZoom: true,
+                    displayModeBar: true,
+                    doubleClick: "reset",
+                    modeBarButtonsToRemove: ["lasso2d", "select2d"]
+                }).then(() => {
+                    const plot = document.getElementById(divId);
+                    aplicarTemaPlotly(plot);
+                    instalarAjusteAutomaticoPlotly(plot);
+                    requestAnimationFrame(() => ajustarGraficoAutomaticamente(plot));
+                });
             });
 
             const primeiraLinha = DF.find(r => r["CÓDIGO"] === codigos[0]);
@@ -2110,6 +2620,7 @@
                     }
                 }
             });
+            aplicarTemaChartJs();
         }
 
         const SETORES_16 = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
